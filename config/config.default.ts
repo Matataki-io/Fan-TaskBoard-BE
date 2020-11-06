@@ -7,6 +7,13 @@ export default (appInfo: EggAppInfo) => {
   // use for cookie sign key, should change to your own and keep security
   config.keys = appInfo.name + '_1604646854915_2627';
 
+  config.security = {
+    domainWhiteList: [ 'http://localhost:3000', '127.0.0.1:3000' ],
+    csrf: {
+      enable: false,
+    },
+  };
+
   // add your egg config in here
   config.middleware = [];
 
