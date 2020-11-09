@@ -9,8 +9,8 @@ interface paginationInterface {
 export default class NftController extends Controller {
   public async CreateNft() {
     const { ctx } = this;
-    const { tokenId, account, transactionHash, tx, logo, name, symbol, description }: nftInterface = ctx.request.body;
-    const result = await ctx.service.nft.CreateNft({ tokenId, account, transactionHash, tx, logo, name, symbol, description });
+    const { tokenId, account, logo, name, externalLink, description }: nftInterface = ctx.request.body;
+    const result = await ctx.service.nft.CreateNft({ tokenId, account, logo, name, externalLink, description });
     if (result.code === 0) {
       ctx.body = {
         code: 0,

@@ -14,17 +14,19 @@ interface tokenIdInterface {
  * Nft Service
  */
 export default class Nft extends Service {
-  public async CreateNft({ tokenId, account, transactionHash, tx, logo, name, symbol, description }: nftInterface) {
+  public async CreateNft({ tokenId, account, logo, name, externalLink, description }: nftInterface) {
     try {
       this.logger.info('create nfts', new Date());
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
       const data: nftInterface = {
         tokenId,
         account,
-        transactionHash,
-        tx,
         signature: '',
-        logo, name, symbol, description,
+        logo,
+        name,
+        externalLink,
+        description,
+        status: 1,
         create_time: time,
         update_time: time,
       };
@@ -47,7 +49,7 @@ export default class Nft extends Service {
     try {
       this.logger.info('get nfts', new Date());
       const results = await this.app.mysql.select('nfts', {
-        columns: [ 'tokenId', 'account', 'transactionHash', 'tx', 'logo', 'name', 'symbol', 'description' ],
+        columns: [ 'tokenId', 'account', 'transactionHash', 'tx', 'logo', 'name', 'externalLink', 'description' ],
         orders: [[ 'create_time', 'desc' ], [ 'tokenId', 'desc' ]], // 排序方式
         limit: Number(size), // 返回数据量
         offset: (page - 1) * size, // 数据偏移量
@@ -70,7 +72,7 @@ export default class Nft extends Service {
       this.logger.info('get nfts', new Date());
       const results = await this.app.mysql.select('nfts', {
         where: { tokenId: id },
-        columns: [ 'tokenId', 'account', 'transactionHash', 'tx', 'logo', 'name', 'symbol', 'description', 'create_time' ],
+        columns: [ 'tokenId', 'account', 'transactionHash', 'tx', 'logo', 'name', 'externalLink', 'description', 'create_time' ],
       });
       return {
         code: 0,
