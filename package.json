@@ -22,11 +22,15 @@
     "clean": "ets clean"
   },
   "dependencies": {
+    "crypto-js": "^4.0.0",
     "egg": "^2.6.1",
     "egg-cors": "^2.2.3",
     "egg-mysql": "^3.0.0",
+    "egg-oss": "^2.0.0",
     "egg-scripts": "^2.6.0",
-    "moment": "^2.29.1"
+    "ethers": "^5.0.19",
+    "moment": "^2.29.1",
+    "mz": "^2.7.0"
   },
   "devDependencies": {
     "@types/mocha": "^2.2.40",
