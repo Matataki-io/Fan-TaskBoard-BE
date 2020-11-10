@@ -8,7 +8,7 @@ declare module 'egg' {
 }
 
 export interface nftInterface {
-  tokenId: number,
+  tokenId?: number,
   account: string,
   transactionHash?: string,
   tx?: string,

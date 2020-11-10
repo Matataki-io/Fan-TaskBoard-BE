@@ -17,34 +17,43 @@ interface updateInterface {
 export default class EthEvent extends Service {
 
   private async update({ tokenId, account, transactionHash, tx }: updateInterface) {
-    const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+    const nftSubmitResult = await this.app.mysql.select('nftsSubmit', {
+      where: { account },
+      columns: [ 'logo', 'name', 'externalLink', 'description' ],
+    });
 
-    // 修改数据，将会根据主键 ID 查找，并更新
+    this.logger.info('eth event nftSubmitResult', nftSubmitResult);
+
+    if (!nftSubmitResult.length) return;
+
+    const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+    const { logo, name, externalLink, description } = nftSubmitResult[0];
+
     const row = {
       tokenId,
       account,
       transactionHash,
       tx,
-      status: 0,
+      signature: '',
+      logo,
+      name,
+      externalLink,
+      description,
+      create_time: time,
       update_time: time,
     };
-    const options = {
-      where: {
-        tokenId,
-        account,
-      },
-    };
-    const result = await this.app.mysql.update('nfts', row, options);
+    const result = await this.app.mysql.insert('nfts', row);
 
-
-    // 判断更新成功
     const updateSuccess = result.affectedRows === 1;
-    console.log('updateSuccess', updateSuccess);
+    if (updateSuccess) {
+      this.logger.info('updateSuccess', updateSuccess);
+    } else {
+      this.logger.error('updateFaild', updateSuccess);
+    }
+
   }
 
   public async index() {
-    this.logger.info('eth event start...', new Date());
-
     try {
       // const provider = ethers.getDefaultProvider('rinkeby');
       const provider = new ethers.providers.JsonRpcProvider('https://eth-rinkeby.alchemyapi.io/v2/SLFdIfubZlDvaKjRv-rP3Ie0msesJydB');

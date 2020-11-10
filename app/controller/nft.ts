@@ -6,11 +6,15 @@ interface paginationInterface {
   size?: number,
 }
 
+interface myNftInterface extends paginationInterface {
+  account?: string,
+}
+
 export default class NftController extends Controller {
   public async CreateNft() {
     const { ctx } = this;
-    const { tokenId, account, logo, name, externalLink, description }: nftInterface = ctx.request.body;
-    const result = await ctx.service.nft.CreateNft({ tokenId, account, logo, name, externalLink, description });
+    const { account, logo, name, externalLink, description }: nftInterface = ctx.request.body;
+    const result = await ctx.service.nft.CreateNft({ account, logo, name, externalLink, description });
     if (result.code === 0) {
       ctx.body = {
         code: 0,
@@ -22,8 +26,8 @@ export default class NftController extends Controller {
   }
   public async getNft() {
     const { ctx } = this;
-    const { page = 0, size = 20 }: paginationInterface = ctx.request.query;
-    const result = await ctx.service.nft.getNft({ page, size });
+    const { page = 1, size = 20, account = '' }: myNftInterface = ctx.request.query;
+    const result = await ctx.service.nft.getNft({ page, size, account });
     ctx.body = {
       code: 0,
       message: 'success',
