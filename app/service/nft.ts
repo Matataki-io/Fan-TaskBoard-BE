@@ -96,7 +96,13 @@ export default class Nft extends Service {
         data = { ...data, where: { account } };
       }
       const results = await this.app.mysql.select('nfts', data);
-      const countResults = await this.app.mysql.query('SELECT COUNT(1) as count from nfts;');
+
+      let sql = 'SELECT COUNT(1) as count from nfts';
+      if (account) {
+        sql += ` WHERE account = '${account}'`;
+      }
+      sql += ';';
+      const countResults = await this.app.mysql.query(sql);
       return {
         count: countResults[0].count,
         list: results,
