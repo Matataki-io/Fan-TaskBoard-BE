@@ -22,3 +22,15 @@ export interface nftInterface {
   update_time?: string,
 }
 
+export interface questInterface {
+  id?: number,
+  uid?: number,
+  type: number,
+  twitter_id: number,
+  token_id: number,
+  reward_people: string,
+  reward_price: string,
+  create_time?: string,
+  update_time?: string,
+}
+

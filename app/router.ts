@@ -1,4 +1,5 @@
 import { Application } from 'egg';
+import passport from './passport';
 
 export default (app: Application) => {
   const { controller, router } = app;
@@ -15,4 +16,8 @@ export default (app: Application) => {
   router.get('/nft/:id', controller.nft.getNftId);
   // logo 上传
   router.post('/image/logo', controller.oss.upload);
+
+  router.post('/quest', passport.authorize, controller.quest.CreateQuest);
+  router.get('/quest', controller.quest.getQuest);
+
 };

@@ -5,11 +5,13 @@ import 'egg';
 import ExportHome from '../../../app/controller/home';
 import ExportNft from '../../../app/controller/nft';
 import ExportOss from '../../../app/controller/oss';
+import ExportQuest from '../../../app/controller/quest';
 
 declare module 'egg' {
   interface IController {
     home: ExportHome;
     nft: ExportNft;
     oss: ExportOss;
+    quest: ExportQuest;
   }
 }

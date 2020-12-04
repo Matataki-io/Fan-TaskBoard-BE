@@ -9,11 +9,13 @@ type AutoInstanceType<T, U = T extends CanExportFunc ? T : T extends AnyFunc ? R
 import ExportEthEvent from '../../../app/service/EthEvent';
 import ExportTest from '../../../app/service/Test';
 import ExportNft from '../../../app/service/nft';
+import ExportQuest from '../../../app/service/quest';
 
 declare module 'egg' {
   interface IService {
     ethEvent: AutoInstanceType<typeof ExportEthEvent>;
     test: AutoInstanceType<typeof ExportTest>;
     nft: AutoInstanceType<typeof ExportNft>;
+    quest: AutoInstanceType<typeof ExportQuest>;
   }
 }
