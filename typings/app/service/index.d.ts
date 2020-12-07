@@ -10,6 +10,7 @@ import ExportEthEvent from '../../../app/service/EthEvent';
 import ExportTest from '../../../app/service/Test';
 import ExportNft from '../../../app/service/nft';
 import ExportQuest from '../../../app/service/quest';
+import ExportTwitter from '../../../app/service/twitter';
 
 declare module 'egg' {
   interface IService {
@@ -17,5 +18,6 @@ declare module 'egg' {
     test: AutoInstanceType<typeof ExportTest>;
     nft: AutoInstanceType<typeof ExportNft>;
     quest: AutoInstanceType<typeof ExportQuest>;
+    twitter: AutoInstanceType<typeof ExportTwitter>;
   }
 }

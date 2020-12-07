@@ -20,4 +20,7 @@ export default (app: Application) => {
   router.post('/quest', passport.authorize, controller.quest.CreateQuest);
   router.get('/quest', controller.quest.getQuest);
 
+  // 搜索twitter用户
+  router.get('/users/search/twitter', controller.twitter.usersSearch);
+
 };

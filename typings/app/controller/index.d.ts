@@ -6,6 +6,7 @@ import ExportHome from '../../../app/controller/home';
 import ExportNft from '../../../app/controller/nft';
 import ExportOss from '../../../app/controller/oss';
 import ExportQuest from '../../../app/controller/quest';
+import ExportTwitter from '../../../app/controller/twitter';
 
 declare module 'egg' {
   interface IController {
@@ -13,5 +14,6 @@ declare module 'egg' {
     nft: ExportNft;
     oss: ExportOss;
     quest: ExportQuest;
+    twitter: ExportTwitter;
   }
 }

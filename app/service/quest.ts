@@ -105,6 +105,22 @@ export default class Quest extends Service {
       }
       sql += ';';
       const countResults = await mysqlQuest.query(sql);
+
+      // 查询 Twitter 信息
+
+      // Twitter 任务 查询用户信息
+      const screenNameArr = results.map((i: any) => i.type === 0 && i.twitter_id);
+      const screenNameStr = screenNameArr.join(',');
+
+      const usersTwitter = await this.service.twitter.usersLookup(screenNameStr);
+      console.log('usersTwitter', usersTwitter);
+
+      results.forEach((i: any) => {
+        if (i.type === 0) { // Twitter 任务 查询用户信息
+          i = Object.assign(i, usersTwitter[i.twitter_id]);
+        }
+      });
+
       return {
         count: countResults[0].count,
         list: results,
