@@ -10,6 +10,10 @@ interface myNftInterface extends paginationInterface {
   account?: string,
 }
 
+interface receiveProps {
+  qid: number,
+}
+
 export default class QuestController extends Controller {
   public async CreateQuest() {
     const { ctx } = this;
@@ -33,6 +37,19 @@ export default class QuestController extends Controller {
       message: 'success',
       data: result,
     };
+  }
+  public async receive() {
+    const { ctx } = this;
+    const { qid }: receiveProps = ctx.request.body;
+    const result = await ctx.service.quest.receive(qid);
+    if (result.code === 0) {
+      ctx.body = {
+        code: 0,
+        message: 'success',
+      };
+    } else {
+      ctx.body = result;
+    }
   }
   public async getNftId() {
     const { ctx } = this;

@@ -17,10 +17,15 @@ export default (app: Application) => {
   // logo 上传
   router.post('/image/logo', controller.oss.upload);
 
+  // 创建任务
   router.post('/quest', passport.authorize, controller.quest.CreateQuest);
-  router.get('/quest', controller.quest.getQuest);
+  // 获取所有任务
+  router.get('/quest', passport.verify, controller.quest.getQuest);
+  // 领取奖励
+  router.post('/receive', passport.authorize, controller.quest.receive);
 
   // 搜索twitter用户
   router.get('/users/search/twitter', controller.twitter.usersSearch);
+  router.get('/test', controller.twitter.test);
 
 };

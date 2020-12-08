@@ -1,6 +1,7 @@
 import { Service } from 'egg';
 
 import { T } from '../utils/twitter';
+import { friendshipsProps } from '../../typings/index';
 
 
 interface usersSearchProps {
@@ -90,6 +91,73 @@ export default class Twitter extends Service {
     } catch (error) {
       ctx.logger.error('usersLookup error', error);
       return {};
+    }
+  }
+  // 获取twitter用户 A 和 B 的关注状态
+  public async friendshipsShow(source_screen_name: string, target_screen_name: string): Promise<friendshipsProps> {
+    const { ctx } = this;
+
+    try {
+
+      // 不能为空
+      if (!source_screen_name || !target_screen_name) {
+        throw new Error('source_screen_name or target_screen_name not empty');
+      }
+
+      const result: friendshipsProps = await new Promise((resolve: any, reject: any) => {
+
+        const params = {
+          source_screen_name,
+          target_screen_name,
+        };
+
+        function searchData(error, data) {
+          if (error) {
+            reject(error);
+          } else {
+            // console.log('data', data);
+            resolve(data);
+          }
+        }
+
+        T.get('friendships/show', params, searchData);
+      });
+
+      return result;
+    } catch (error) {
+      ctx.logger.error('friendshipsShow error', error);
+      const result: any = {};
+      return result;
+    }
+  }
+  public async test(): Promise<friendshipsProps> {
+    const { ctx } = this;
+
+    try {
+      const result: friendshipsProps = await new Promise((resolve: any, reject: any) => {
+
+        const params = {
+          source_screen_name: 'XiaoTianIsMe',
+          target_screen_name: 'XiaoTianIsMe',
+        };
+
+        function searchData(error, data) {
+          if (error) {
+            reject(error);
+          } else {
+            console.log('data', data);
+            resolve(data);
+          }
+        }
+
+        T.get('friendships/show', params, searchData);
+      });
+
+      return result;
+    } catch (error) {
+      ctx.logger.error('usersLookup error', error);
+      const result: any = {};
+      return result;
     }
   }
 }

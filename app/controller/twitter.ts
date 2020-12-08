@@ -13,6 +13,9 @@ export default class HomeController extends Controller {
         message: 'please input search content',
       };
     }
-
+  }
+  public async test() {
+    const { ctx } = this;
+    ctx.body = await ctx.service.twitter.test();
   }
 }

@@ -1,6 +1,8 @@
 import { Service } from 'egg';
 import * as moment from 'moment';
-import { questInterface } from '../../typings/index';
+import { questInterface, friendshipsProps } from '../../typings/index';
+import { isEmpty } from 'lodash';
+
 
 interface paginationInterface {
   page: number,
@@ -13,6 +15,32 @@ interface myNftInterface extends paginationInterface {
 
 interface tokenIdInterface {
   id: string,
+}
+
+
+// interface requestResult {
+//   count: number,
+//   message: string,
+//   data?: any
+// }
+
+interface questsListProps {
+  count: number,
+  list: {
+    'id': number,
+    'uid': number,
+    'type': number,
+    'twitter_id': string,
+    'token_id': number,
+    'reward_people': string,
+    'reward_price': string,
+    'create_time': string,
+    'username': string,
+    'symbol': string,
+    'name': string,
+    'screen_name': string,
+    'profile_image_url_https': string
+  }[]
 }
 
 /**
@@ -53,9 +81,16 @@ export default class Quest extends Service {
     }
   }
 
-  public async getQuest({ page, size, account }: myNftInterface) {
+  public async getQuest({ page, size, account }: myNftInterface): Promise<questsListProps> {
     try {
       this.logger.info('get quest', new Date());
+
+      const { ctx } = this;
+      const { id } = ctx.user;
+
+      // init mysql
+      const mysqlQuest = this.app.mysql.get('quest');
+      const mysqlMatataki = this.app.mysql.get('matataki');
 
       let data: any = {
         columns: [ 'id', 'uid', 'type', 'twitter_id', 'token_id', 'reward_people', 'reward_price', 'create_time' ],
@@ -68,12 +103,10 @@ export default class Quest extends Service {
         data = { ...data, where: { account } };
       }
 
-      const mysqlQuest = this.app.mysql.get('quest');
+      // 查询任务
       const results = await mysqlQuest.select('quests', data);
 
       // 查询用户数据
-      const mysqlMatataki = this.app.mysql.get('matataki');
-
       let sqlUser = '';
       results.forEach((i: any) => {
         sqlUser += `SELECT * FROM users WHERE id = ${i.uid};`;
@@ -113,13 +146,83 @@ export default class Quest extends Service {
       const screenNameStr = screenNameArr.join(',');
 
       const usersTwitter = await this.service.twitter.usersLookup(screenNameStr);
-      console.log('usersTwitter', usersTwitter);
+      // console.log('usersTwitter', usersTwitter);
 
       results.forEach((i: any) => {
         if (i.type === 0) { // Twitter 任务 查询用户信息
           i = Object.assign(i, usersTwitter[i.twitter_id]);
         }
       });
+
+      // 没有登陆不查询 Twitter 关注信息 直接返回
+      if (!id) {
+        return {
+          count: countResults[0].count,
+          list: results,
+        };
+      }
+
+      // 当前登陆用户是否关注任务的twitter用户
+
+      // 查询当前账户绑定的twitter
+      const sqlCurrentUserTwitter = 'SELECT u.id, ua.uid, ua.account FROM users u LEFT JOIN user_accounts ua ON u.id = ua.uid WHERE u.id = ? AND ua.platform = \'twitter\';';
+      const currentUserTwitter = await mysqlMatataki.query(sqlCurrentUserTwitter, [ id ]);
+      // console.log('currentUserTwitter', currentUserTwitter);
+
+      // 查询 Twitter 关系   TIPS: 没有找到批量查询的接口 只能一个一个去查询了....
+      const relationship = async (source_screen_name: string, target: any[]) => {
+
+        // a,b
+        const argumentsArr: string[] = target.map((i: any) => `${source_screen_name},${i.screen_name}`);
+        // 去重处理
+        const argumentsArrDedupe: string[] = [ ...new Set(argumentsArr) ];
+        // 筛选掉查询自己的
+        const argumentsArrDedupeFilter: string[] = argumentsArrDedupe.filter(i => {
+          const arr = i.split(',');
+          return arr[0] !== arr[1];
+        });
+        console.log('argumentsArr', argumentsArrDedupeFilter);
+
+        // 准备查询语句
+        const promiseArr: any[] = [];
+        argumentsArrDedupeFilter.forEach((i: any) => {
+          promiseArr.push(ctx.service.twitter.friendshipsShow(source_screen_name, (i.split(','))[1])); // a,b
+        });
+
+        // 开始查询twitter关系结果
+        const result: friendshipsProps[] = await Promise.all(promiseArr);
+        // console.log('result', result);
+
+        // 处理关系结果格式 ===> [key: target_screen_name]: {}
+        const relationshipList = {};
+        result.forEach((i: friendshipsProps) => {
+          // 处理 empty object
+          if (!isEmpty(i)) {
+            const screen_name: any = i.relationship.target.screen_name;
+            if (!relationshipList[screen_name]) {
+              relationshipList[screen_name] = {};
+            }
+            relationshipList[screen_name] = i;
+          }
+        });
+        console.log('relationshipList', relationshipList);
+
+        // 循环target 根据 screen_name 匹配 relationshipList 的结果
+        target.forEach((i: any, idx: number) => {
+          const screen_name = i.screen_name;
+          if (relationshipList[screen_name]) {
+            target[idx].following = relationshipList[screen_name].relationship.source.following;
+          } else {
+            target[idx].following = false; // 默认参数，自己的关注状态
+          }
+        });
+
+      };
+
+      // 绑定了 Twitter
+      if (currentUserTwitter.length) {
+        await relationship(currentUserTwitter[0].account, results); // 传递 results 引用
+      }
 
       return {
         count: countResults[0].count,
@@ -130,6 +233,42 @@ export default class Quest extends Service {
       return {
         count: 0,
         list: [],
+      };
+    }
+  }
+  public async receive(qid: number) {
+    try {
+      this.logger.info('receive', new Date());
+
+      const { ctx } = this;
+      // 获取用户 uid
+      const { id } = ctx.user;
+
+      // 获取任务 type
+      const mysqlQuest = this.app.mysql.get('quest');
+
+      const resultQuest = await mysqlQuest.get('quests', { id: qid });
+      console.log('resultQuest', resultQuest);
+
+      // 发送奖励.....
+
+      // 插入数据
+      const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+      await mysqlQuest.insert('quests_logs', {
+        qid,
+        uid: id,
+        type: resultQuest.type,
+        create_time: time,
+      });
+
+      return {
+        code: 0,
+      };
+    } catch (e) {
+      this.logger.error('receive error: ', e);
+      return {
+        code: -1,
+        message: `receive error${e}`,
       };
     }
   }

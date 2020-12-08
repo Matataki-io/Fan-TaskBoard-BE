@@ -22,6 +22,7 @@
     "clean": "ets clean"
   },
   "dependencies": {
+    "@types/lodash": "^4.14.165",
     "crypto-js": "^4.0.0",
     "egg": "^2.6.1",
     "egg-cors": "^2.2.3",
@@ -30,6 +31,7 @@
     "egg-scripts": "^2.6.0",
     "ethers": "^5.0.19",
     "jwt-simple": "^0.5.6",
+    "lodash": "^4.17.20",
     "moment": "^2.29.1",
     "mz": "^2.7.0",
     "twit": "^2.2.11",
