@@ -10,6 +10,7 @@ import ExportEthEvent from '../../../app/service/EthEvent';
 import ExportTest from '../../../app/service/Test';
 import ExportNft from '../../../app/service/nft';
 import ExportQuest from '../../../app/service/quest';
+import ExportToken from '../../../app/service/token';
 import ExportTwitter from '../../../app/service/twitter';
 
 declare module 'egg' {
@@ -18,6 +19,7 @@ declare module 'egg' {
     test: AutoInstanceType<typeof ExportTest>;
     nft: AutoInstanceType<typeof ExportNft>;
     quest: AutoInstanceType<typeof ExportQuest>;
+    token: AutoInstanceType<typeof ExportToken>;
     twitter: AutoInstanceType<typeof ExportTwitter>;
   }
 }

@@ -28,4 +28,7 @@ export default (app: Application) => {
   router.get('/users/search/twitter', controller.twitter.usersSearch);
   router.get('/test', controller.twitter.test);
 
+  // 获取Fan票列表，支持分页和搜索。
+  router.get('/token/list', controller.token.getList);
+
 };
