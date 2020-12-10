@@ -1,8 +1,7 @@
 import { Service } from 'egg';
-
-import { T } from '../utils/twitter';
+import * as TwitterClient from 'twitter';
 import { friendshipsProps } from '../../typings/index';
-
+import { twitterConfig } from '../utils/twitter';
 
 interface usersSearchProps {
   q: string,
@@ -13,6 +12,7 @@ interface usersSearchProps {
  * Twitter Service
  */
 export default class Twitter extends Service {
+
   // 搜索twitter用户
   public async usersSearch({ q, count }: usersSearchProps) {
     const { ctx } = this;
@@ -30,6 +30,12 @@ export default class Twitter extends Service {
           }
         }
 
+        const T: TwitterClient = new TwitterClient(twitterConfig({
+          consumer_key: this.config.twitter.consumer_key,
+          consumer_secret: this.config.twitter.consumer_secret,
+          access_token_key: this.config.twitter.access_token_key,
+          access_token_secret: this.config.twitter.access_token_secret,
+        }));
         T.get('users/search', params, searchData);
       });
 
@@ -57,6 +63,7 @@ export default class Twitter extends Service {
   public async usersLookup(screen_name: string) {
     const { ctx } = this;
 
+
     try {
       const result: [] = await new Promise((resolve: any, reject: any) => {
         // 'XiaoTianIsMe,XiaoTianIsMe,island205,XiaoTianIsMe'
@@ -71,6 +78,12 @@ export default class Twitter extends Service {
           }
         }
 
+        const T: TwitterClient = new TwitterClient(twitterConfig({
+          consumer_key: this.config.twitter.consumer_key,
+          consumer_secret: this.config.twitter.consumer_secret,
+          access_token_key: this.config.twitter.access_token_key,
+          access_token_secret: this.config.twitter.access_token_secret,
+        }));
         T.get('users/lookup', params, searchData);
       });
 
@@ -120,6 +133,12 @@ export default class Twitter extends Service {
           }
         }
 
+        const T: TwitterClient = new TwitterClient(twitterConfig({
+          consumer_key: this.config.twitter.consumer_key,
+          consumer_secret: this.config.twitter.consumer_secret,
+          access_token_key: this.config.twitter.access_token_key,
+          access_token_secret: this.config.twitter.access_token_secret,
+        }));
         T.get('friendships/show', params, searchData);
       });
 
@@ -150,6 +169,12 @@ export default class Twitter extends Service {
           }
         }
 
+        const T: TwitterClient = new TwitterClient(twitterConfig({
+          consumer_key: this.config.twitter.consumer_key,
+          consumer_secret: this.config.twitter.consumer_secret,
+          access_token_key: this.config.twitter.access_token_key,
+          access_token_secret: this.config.twitter.access_token_secret,
+        }));
         T.get('friendships/show', params, searchData);
       });
 

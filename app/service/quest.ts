@@ -13,11 +13,6 @@ interface myNftInterface extends paginationInterface {
   account: string,
 }
 
-interface tokenIdInterface {
-  id: string,
-}
-
-
 // interface requestResult {
 //   count: number,
 //   message: string,
@@ -296,6 +291,11 @@ export default class Quest extends Service {
     // 获取用户 uid
     const { id } = ctx.user;
 
+    // 设置托管信息
+    if (isEmpty(ctx.userQuest)) {
+      await this.getHostingInfo();
+    }
+
     // init mysql
     const mysqlQuest = this.app.mysql.get('quest');
     const mysqlMatataki = this.app.mysql.get('matataki');
@@ -387,7 +387,7 @@ export default class Quest extends Service {
       const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
       await connQuest.insert('quests_transfer_logs', {
         qlogid: rewardResult.insertId,
-        from_id: 0,
+        from_id: ctx.userQuest.id,
         to_id: id,
         token_id: resultQuest.token_id,
         amount,
@@ -410,23 +410,129 @@ export default class Quest extends Service {
       };
     }
   }
-  public async getNftId({ id }: tokenIdInterface) {
+
+  public async getToken() {
+    const { logger, ctx } = this;
+    logger.info('getToken', new Date());
     try {
-      this.logger.info('get nfts', new Date());
-      const results = await this.app.mysql.select('nfts', {
-        where: { tokenId: id },
-        columns: [ 'tokenId', 'account', 'transactionHash', 'logo', 'name', 'externalLink', 'description', 'create_time' ],
+      // 获取托管用户的信息
+      const result = await ctx.curl(`${this.config.mtkApi}/login/account`, {
+        dataType: 'json',
+        method: 'POST',
+        contentType: 'json',
+        data: {
+          username: this.config.mtkUser.username,
+          password: this.config.mtkUser.password,
+        },
       });
-      return {
-        code: 0,
-        data: results[0] || {},
-      };
+      if (result.status === 200 && result.data.code === 0) {
+        return result.data.data;
+      }
+      throw new Error('获取托管账户授权失败');
     } catch (e) {
-      this.logger.error('get nft id error: ', id, e);
-      return {
-        code: -1,
-        message: `get nft id error ${id} ${e}`,
-      };
+      this.logger.error('getToken error: ', e);
+      return '';
+    }
+  }
+
+  public async getHostingInfo() {
+    const { logger, ctx } = this;
+    logger.info('getHostingInfo', new Date());
+
+    try {
+      const token = await this.getToken();
+      if (!token) {
+        throw new Error('没有token');
+      }
+
+      const resultUserStats = await ctx.curl(`${this.config.mtkApi}/user/stats`, {
+        dataType: 'json',
+        method: 'GET',
+        contentType: 'json',
+        headers: {
+          'x-access-token': token,
+        },
+      });
+      if (resultUserStats.status === 200 && resultUserStats.data.code === 0) {
+        ctx.userQuest = {
+          id: resultUserStats.data.data.id,
+          token,
+        };
+        // console.log('resultUserStats', resultUserStats);
+      } else {
+        throw new Error('获取托管账户信息失败');
+      }
+      // console.log('userQuest', ctx.userQuest);
+    } catch (e) {
+      this.logger.error('getHostingInfo error: ', e);
+      ctx.userQuest = {};
+    }
+  }
+
+  // 发放奖励
+  public async receiveTransfer() {
+
+    const token = await this.getToken();
+    if (!token) {
+      throw new Error('没有token');
+    }
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
+
+    try {
+      // 获取所有需要处理的列表
+      const resultTransfer = await connQuest.query('SELECT * FROM quests_transfer_logs WHERE hash = \'\' ORDER BY create_time ASC LIMIT 0, 1;');
+      console.log('resultTransfer', this.ctx.userQuest);
+
+      if (!resultTransfer.length) {
+        return;
+      }
+
+      // 获取最早的第一个 开始转账
+      const resultUserStats = await this.ctx.curl(`${this.config.mtkApi}/minetoken/transfer`, {
+        dataType: 'json',
+        method: 'POST',
+        contentType: 'json',
+        headers: {
+          'x-access-token': token,
+        },
+        timeout: 30 * 1000,
+        data: {
+          amount: resultTransfer[0].amount * 10000,
+          memo: 'Matataki Quest 任务奖励',
+          to: resultTransfer[0].to_id,
+          tokenId: resultTransfer[0].token_id,
+        },
+      });
+
+      console.log('resultUserStats', resultUserStats);
+      // 插入 hash 更新时间
+      if (resultUserStats.status === 200 && resultUserStats.data.code === 0) {
+        const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+
+        const row = {
+          id: resultTransfer[0].id,
+          hash: resultUserStats.data.data.tx_hash,
+          update_time: time,
+        };
+        const result = await connQuest.update('quests_transfer_logs', row);
+        const updateSuccess = result.affectedRows === 1;
+
+        if (updateSuccess) {
+          console.log('发布奖励成功');
+          await connQuest.commit();
+        } else {
+          throw new Error('发布奖励失败');
+        }
+      } else {
+        throw new Error('转账失败');
+      }
+
+    } catch (error) {
+      this.logger.error('receiveTransfer error: ', error.toString());
+      await connQuest.rollback();
     }
   }
 }
