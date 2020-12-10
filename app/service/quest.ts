@@ -2,7 +2,7 @@ import { Service } from 'egg';
 import * as moment from 'moment';
 import { questInterface, friendshipsProps } from '../../typings/index';
 import { isEmpty } from 'lodash';
-
+import BigNumber from 'bignumber.js';
 
 interface paginationInterface {
   page: number,
@@ -81,7 +81,6 @@ export default class Quest extends Service {
     }
   }
 
-  // TODO 只有一个结果的sql语句处理
   public async getQuest({ page, size, account }: myNftInterface): Promise<questsListProps> {
     try {
       this.logger.info('get quest', new Date());
@@ -105,7 +104,9 @@ export default class Quest extends Service {
       }
 
       // 查询任务
+      // [{}] [{}, {}]
       const results = await mysqlQuest.select('quests', data);
+      console.log('results', results);
 
       // 查询用户数据
       let sqlUser = '';
@@ -147,9 +148,15 @@ export default class Quest extends Service {
       });
       const resultQuestsLogsCount = await mysqlQuest.query(sqlQuestsLogsCounts);
       console.log('resultQuestsLogsCount', resultQuestsLogsCount);
-      resultQuestsLogsCount.forEach((i: any, idx: number) => {
-        results[idx].received = i[0].count;
-      });
+
+      if (results.length <= 1) {
+        results[0].received = resultQuestsLogsCount[0].count;
+      } else {
+        resultQuestsLogsCount.forEach((i: any, idx: number) => {
+          results[idx].received = i[0].count;
+        });
+      }
+
 
       // 查询 Twitter 信息
 
@@ -168,6 +175,13 @@ export default class Quest extends Service {
 
       // 没有登陆不查询 Twitter 关注信息 领取信息 直接返回
       if (!id) {
+
+        // 补充默认参数
+        results.forEach((i: any) => {
+          i.receive = false;
+          i.following = false;
+        });
+
         return {
           count: countResults[0].count,
           list: results,
@@ -180,17 +194,24 @@ export default class Quest extends Service {
       results.forEach((i: any) => {
         sqlQuestsLogs += `SELECT * FROM quests_logs WHERE qid = ${i.id} AND uid = ${id} AND type = ${i.type};`;
       });
-      // console.log('sqlQuestsLogs', sqlQuestsLogs);
       const resultQuestsLogs = await mysqlQuest.query(sqlQuestsLogs);
-      // console.log('resultQuestsLogs', resultQuestsLogs);
+      console.log('resultQuestsLogs', resultQuestsLogs);
 
-      resultQuestsLogs.forEach((i: any, idx: number) => {
-        if (i.length) { // 已经领取
-          results[idx].receive = true;
-        } else {
-          results[idx].receive = false;
-        }
-      });
+      if (!resultQuestsLogs.length) { // 没有领取记录
+        results.forEach((i: any) => {
+          i.receive = false;
+        });
+      } else if (resultQuestsLogs.length <= 1) { // 一条记录
+        results[0].receive = true;
+      } else { // 多条记录
+        resultQuestsLogs.forEach((i: any, idx: number) => {
+          if (i.length) { // 已经领取
+            results[idx].receive = true;
+          } else {
+            results[idx].receive = false;
+          }
+        });
+      }
 
 
       // 当前登陆用户是否关注任务的twitter用户
@@ -268,29 +289,33 @@ export default class Quest extends Service {
     }
   }
 
-  // TODO： 关注自己任务随时可以领取
-  // TODO： 奖励token模块
   public async receive(qid: number) {
+    this.logger.info('receive', new Date());
+
+    const { ctx } = this;
+    // 获取用户 uid
+    const { id } = ctx.user;
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    const mysqlMatataki = this.app.mysql.get('matataki');
+    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
+
     try {
-      this.logger.info('receive', new Date());
-
-      const { ctx } = this;
-      // 获取用户 uid
-      const { id } = ctx.user;
-
-      // init mysql
-      const mysqlQuest = this.app.mysql.get('quest');
-      const mysqlMatataki = this.app.mysql.get('matataki');
-
       // 查询任务列表 获取任务 type
-      const resultQuest = await mysqlQuest.get('quests', { id: qid });
+      const resultQuest = await connQuest.get('quests', { id: qid });
       console.log('resultQuest', resultQuest);
       if (!resultQuest) {
         throw new Error('任务不存在');
       }
 
+      // 不能领取自己发布的任务
+      if (String(resultQuest.uid) === String(id)) {
+        throw new Error('不能领取自己发布的任务');
+      }
+
       // 查询是否领取完了
-      const questLogCount = await mysqlQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
+      const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
       // console.log('questLogCount', questLogCount);
       if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
         throw new Error('已经领取完了');
@@ -305,16 +330,21 @@ export default class Quest extends Service {
 
         // 判断是否绑定Twitter
         if (resultUser.length) {
-          const source_screen_name = resultUser[0].account;
-          const target_screen_name = resultQuest.twitter_id;
-          const userFriendship = await ctx.service.twitter.friendshipsShow(source_screen_name, target_screen_name);
-          console.log('userFriendship', userFriendship);
-
-          // 判断是否完成任务
-          if (userFriendship.relationship.source.following) {
-            console.log('完成任务');
+          // 判断是否关注自己
+          if (resultUser[0].account === resultQuest.twitter_id) {
+            console.log('别人发布的任务关注自己 直接领取');
           } else {
-            throw new Error('没有达成领取条件');
+            const source_screen_name = resultUser[0].account;
+            const target_screen_name = resultQuest.twitter_id;
+            const userFriendship = await ctx.service.twitter.friendshipsShow(source_screen_name, target_screen_name);
+            console.log('userFriendship', userFriendship);
+
+            // 判断是否完成任务
+            if (userFriendship.relationship.source.following) {
+              console.log('完成任务');
+            } else {
+              throw new Error('没有达成领取条件');
+            }
           }
         } else {
           throw new Error('需要绑定Twitter账号');
@@ -323,10 +353,8 @@ export default class Quest extends Service {
         throw new Error('领取不存在的任务类型');
       }
 
-      // 发送奖励.....
-
       // 防止重复领取
-      const resultGetQuest = await mysqlQuest.get('quests_logs', {
+      const resultGetQuest = await connQuest.get('quests_logs', {
         qid,
         uid: id,
         type: resultQuest.type,
@@ -335,20 +363,47 @@ export default class Quest extends Service {
         throw new Error('已经领取过了');
       }
 
-      // 插入数据
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
-      await mysqlQuest.insert('quests_logs', {
+
+      // 领取奖励
+      const rewardResult = await connQuest.insert('quests_logs', {
         qid,
         uid: id,
         type: resultQuest.type,
         create_time: time,
       });
+      console.log('rewardResult', rewardResult);
+
+      // 发送奖励
+      // 计算获取奖励
+      const processReward = (price: string, people: string) => {
+        // console.log('1111', price, people)
+        const BN = BigNumber.clone();
+        BN.config({ DECIMAL_PLACES: 3 });
+        const single = new BN(new BN(Number(price))).dividedBy(Number(people));
+        return single.toString();
+      };
+
+      const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+      await connQuest.insert('quests_transfer_logs', {
+        qlogid: rewardResult.insertId,
+        from_id: 0,
+        to_id: id,
+        token_id: resultQuest.token_id,
+        amount,
+        hash: '',
+        create_time: time,
+        update_time: time,
+      });
+
+      await connQuest.commit();
 
       return {
         code: 0,
       };
     } catch (e) {
       this.logger.error('receive error: ', e);
+      await connQuest.rollback();
       return {
         code: -1,
         message: `receive error${e}`,
