@@ -7,11 +7,11 @@ class AppBootHook implements IBoot {
   }
 
   async didReady() {
-    // 应用已经启动完毕
-    const ctx = await this.app.createAnonymousContext();
+    // 应用已经启动完毕;
+    // const ctx = await this.app.createAnonymousContext();
 
     // 设置token
-    ctx.service.quest.getHostingInfo();
+    // ctx.service.quest.getHostingInfo();
   }
 
 }
