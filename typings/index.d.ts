@@ -3,7 +3,8 @@ import 'egg';
 
 declare module 'egg' {
   interface Application {
-      mysql: any
+      mysql: any,
+      cache: any
   }
 }
 
@@ -30,6 +31,7 @@ export interface questInterface {
   token_id: number,
   reward_people: string,
   reward_price: string,
+  hash: string,
   create_time?: string,
   update_time?: string,
 }
