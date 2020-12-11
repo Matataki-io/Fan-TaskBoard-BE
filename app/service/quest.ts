@@ -159,7 +159,7 @@ export default class Quest extends Service {
       // 查询任务
       // [{}] [{}, {}]
       const results = await mysqlQuest.select('quests', data);
-      console.log('results', results);
+      // console.log('results', results);
 
       // 查询用户数据
       let sqlUser = '';
@@ -248,7 +248,7 @@ export default class Quest extends Service {
         sqlQuestsLogs += `SELECT * FROM quests_logs WHERE qid = ${i.id} AND uid = ${id} AND type = ${i.type};`;
       });
       const resultQuestsLogs = await mysqlQuest.query(sqlQuestsLogs);
-      console.log('resultQuestsLogs', resultQuestsLogs);
+      // console.log('resultQuestsLogs', resultQuestsLogs);
 
       if (!resultQuestsLogs.length) { // 没有领取记录
         results.forEach((i: any) => {
@@ -272,7 +272,7 @@ export default class Quest extends Service {
       // 查询当前账户绑定的twitter
       const sqlCurrentUserTwitter = 'SELECT u.id, ua.uid, ua.account FROM users u LEFT JOIN user_accounts ua ON u.id = ua.uid WHERE u.id = ? AND ua.platform = \'twitter\';';
       const currentUserTwitter = await mysqlMatataki.query(sqlCurrentUserTwitter, [ id ]);
-      // console.log('currentUserTwitter', currentUserTwitter);
+      console.log('currentUserTwitter', currentUserTwitter);
 
       // 查询 Twitter 关系   TIPS: 没有找到批量查询的接口 只能一个一个去查询了....
       const relationship = async (source_screen_name: string, target: any[]) => {
@@ -301,6 +301,7 @@ export default class Quest extends Service {
         // 处理关系结果格式 ===> [key: target_screen_name]: {}
         const relationshipList = {};
         result.forEach((i: friendshipsProps) => {
+          console.log('i ', i);
           // 处理 empty object
           if (!isEmpty(i)) {
             const screen_name: any = i.relationship.target.screen_name;
