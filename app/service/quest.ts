@@ -42,13 +42,70 @@ interface questsListProps {
  * Quest Service
  */
 export default class Quest extends Service {
+
   public async CreateQuest({ type, twitter_id, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
     console.log('type, twitter_id, token_id, reward_people, reward_price', type, twitter_id, token_id, reward_people, reward_price);
+    this.logger.info('create quest submit', new Date());
+    const { ctx } = this;
+    const { id } = ctx.user;
+
     try {
-      this.logger.info('create quest submit', new Date());
+
+      // 判断参数
+      const questData = { type, twitter_id, token_id, reward_people, reward_price };
+      const typeList = [ 0 ];
+      if (!typeList.includes(Number(questData.type))) {
+        throw new Error('请选择任务类型');
+      }
+
+      for (const key in questData) {
+        // 忽略type
+        if (key !== 'type' && !questData[key].trim()) {
+          throw new Error(`${key} 不能为空`);
+        }
+      }
+
+      if (!(Number.isInteger(Number(questData.reward_people)) && Number(questData.reward_people) > 0)) {
+        throw new Error('奖励人数必须为整数并大于0');
+      }
+      if (!(Number(questData.reward_price) > 0)) {
+        throw new Error('奖励金额必须大于0');
+      }
+
+      // 设置托管信息
+      if (isEmpty(ctx.userQuest)) {
+        await this.getHostingInfo();
+      }
+
+      if (!ctx.userQuest.id) {
+        throw new Error('没有托管信息');
+      }
+
+      const token = ctx.header['x-access-token'];
+      // 转账
+      const resultUserTransfer = await ctx.curl(`${this.config.mtkApi}/minetoken/transfer`, {
+        dataType: 'json',
+        method: 'POST',
+        // contentType: 'json',
+        headers: {
+          'x-access-token': token,
+        },
+        timeout: 30 * 1000,
+        data: {
+          amount: Number(reward_price) * 10000,
+          memo: 'Matataki Quest 任务创建奖池',
+          to: ctx.userQuest.id,
+          tokenId: token_id,
+        },
+      });
+      console.log('CreateQuest resultUserTransfer', resultUserTransfer, token);
+      if (resultUserTransfer.status === 200 && resultUserTransfer.data.code === 0) {
+        //
+      } else {
+        throw new Error('支付失败');
+      }
 
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
-      const { id } = this.ctx.user;
       const data: questInterface = {
         uid: id,
         type,
@@ -56,6 +113,7 @@ export default class Quest extends Service {
         token_id,
         reward_people,
         reward_price,
+        hash: resultUserTransfer.data.data.tx_hash,
         create_time: time,
         update_time: time,
       };
@@ -142,7 +200,7 @@ export default class Quest extends Service {
         sqlQuestsLogsCounts += `SELECT COUNT(1) as count FROM quests_logs WHERE qid = ${i.id};`;
       });
       const resultQuestsLogsCount = await mysqlQuest.query(sqlQuestsLogsCounts);
-      console.log('resultQuestsLogsCount', resultQuestsLogsCount);
+      // console.log('resultQuestsLogsCount', resultQuestsLogsCount);
 
       if (results.length <= 1) {
         results[0].received = resultQuestsLogsCount[0].count;
@@ -294,6 +352,10 @@ export default class Quest extends Service {
     // 设置托管信息
     if (isEmpty(ctx.userQuest)) {
       await this.getHostingInfo();
+    }
+
+    if (!ctx.userQuest.id) {
+      throw new Error('没有托管信息');
     }
 
     // init mysql
@@ -491,10 +553,10 @@ export default class Quest extends Service {
       }
 
       // 获取最早的第一个 开始转账
-      const resultUserStats = await this.ctx.curl(`${this.config.mtkApi}/minetoken/transfer`, {
+      const resultUserTransfer = await this.ctx.curl(`${this.config.mtkApi}/minetoken/transfer`, {
         dataType: 'json',
         method: 'POST',
-        contentType: 'json',
+        // contentType: 'json',
         headers: {
           'x-access-token': token,
         },
@@ -507,14 +569,14 @@ export default class Quest extends Service {
         },
       });
 
-      console.log('resultUserStats', resultUserStats);
+      console.log('resultUserTransfer', resultUserTransfer);
       // 插入 hash 更新时间
-      if (resultUserStats.status === 200 && resultUserStats.data.code === 0) {
+      if (resultUserTransfer.status === 200 && resultUserTransfer.data.code === 0) {
         const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
 
         const row = {
           id: resultTransfer[0].id,
-          hash: resultUserStats.data.data.tx_hash,
+          hash: resultUserTransfer.data.data.tx_hash,
           update_time: time,
         };
         const result = await connQuest.update('quests_transfer_logs', row);
