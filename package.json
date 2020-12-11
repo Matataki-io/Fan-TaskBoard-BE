@@ -8,7 +8,7 @@
     "declarations": true
   },
   "scripts": {
-    "start": "egg-scripts start --daemon --title=egg-server-Matataki-NFT-BE",
+    "start": "egg-scripts start --daemon --title=egg-server-Matataki-NFT-BE --port=7002",
     "stop": "egg-scripts stop --title=egg-server-Matataki-NFT-BE",
     "dev": "egg-bin dev",
     "debug": "egg-bin debug",
