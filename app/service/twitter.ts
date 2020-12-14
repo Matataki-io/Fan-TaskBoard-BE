@@ -27,6 +27,11 @@ export default class Twitter extends Service {
           'users_search',
           params,
           (reply, _: any, err) => {
+
+            if (reply.errors && reply.errors.length) {
+              reject(reply.errors[0].message);
+            }
+
             if (err) {
               reject(err);
             }
@@ -71,6 +76,11 @@ export default class Twitter extends Service {
           (reply, _: any, err) => {
             // console.log('respo', reply);
             // console.log('xrate', xrate);
+
+            if (reply.errors && reply.errors.length) {
+              reject(reply.errors[0].message);
+            }
+
             if (err) {
               reject(err);
             }
@@ -120,6 +130,12 @@ export default class Twitter extends Service {
           'friendships_show',
           params,
           (reply, _: any, err) => {
+            // console.log('reply', reply, err);
+
+            if (reply.errors && reply.errors.length) {
+              reject(reply.errors[0].message);
+            }
+
             if (err) {
               reject(err);
             }

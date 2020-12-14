@@ -6,8 +6,10 @@ interface paginationInterface {
   size?: number,
 }
 
-interface myNftInterface extends paginationInterface {
-  account?: string,
+interface getQuestProps extends paginationInterface {
+  account?: string
+  sort?: string
+  token?: string | number
 }
 
 interface receiveProps {
@@ -30,8 +32,8 @@ export default class QuestController extends Controller {
   }
   public async getQuest() {
     const { ctx } = this;
-    const { page = 1, size = 20, account = '' }: myNftInterface = ctx.request.query;
-    const result = await ctx.service.quest.getQuest({ page, size, account });
+    const { page = 1, size = 20, account = '', sort = 'new', token = '' }: getQuestProps = ctx.request.query;
+    const result = await ctx.service.quest.getQuest({ page, size, account, sort, token });
     ctx.body = {
       code: 0,
       message: 'success',
