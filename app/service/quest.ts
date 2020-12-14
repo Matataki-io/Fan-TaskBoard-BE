@@ -9,8 +9,10 @@ interface paginationInterface {
   size: number,
 }
 
-interface myNftInterface extends paginationInterface {
-  account: string,
+interface getQuestProps extends paginationInterface {
+  account?: string
+  sort?: string
+  token?: string | number
 }
 
 // interface requestResult {
@@ -134,9 +136,9 @@ export default class Quest extends Service {
     }
   }
 
-  public async getQuest({ page, size, account }: myNftInterface): Promise<questsListProps> {
+  public async getQuest({ page, size, sort, token }: getQuestProps): Promise<questsListProps> {
     try {
-      this.logger.info('get quest', new Date());
+      this.logger.info('get quest', new Date(), token);
 
       const { ctx } = this;
       const { id } = ctx.user;
@@ -145,20 +147,26 @@ export default class Quest extends Service {
       const mysqlQuest = this.app.mysql.get('quest');
       const mysqlMatataki = this.app.mysql.get('matataki');
 
-      let data: any = {
-        columns: [ 'id', 'uid', 'type', 'twitter_id', 'token_id', 'reward_people', 'reward_price', 'create_time' ],
-        orders: [[ 'id', 'desc' ], [ 'create_time', 'desc' ]], // 排序方式
-        limit: Number(size), // 返回数据量
-        offset: (page - 1) * size, // 数据偏移量
-      };
+      // 处理排序
+      let orders = '';
+      if (sort === 'new') {
+        orders = 'create_time DESC';
+      } else if (sort === 'most') {
+        orders = 'reward_price+0 DESC';
+      } else {
+        orders = 'create_time DESC';
+      }
 
-      if (account) {
-        data = { ...data, where: { account } };
+      // 处理 token 筛选
+      let whereToken = '';
+      if (token) {
+        whereToken = `WHERE token_id = ${token}`;
       }
 
       // 查询任务
       // [{}] [{}, {}]
-      const results = await mysqlQuest.select('quests', data);
+      const sqlQuests = `SELECT id, uid, type, twitter_id, token_id, reward_people, reward_price, create_time FROM quests ${whereToken} ORDER BY ${orders} LIMIT ?, ?;`;
+      const results = await mysqlQuest.query(sqlQuests, [ (page - 1) * size, Number(size) ]);
       // console.log('results', results);
 
       // 查询用户数据
@@ -188,8 +196,9 @@ export default class Quest extends Service {
 
       // 查询count
       let sql = 'SELECT COUNT(1) as count from quests';
-      if (account) {
-        sql += ` WHERE account = '${account}'`;
+      // 处理筛选
+      if (token) {
+        sql += ` WHERE token_id = ${token}`;
       }
       sql += ';';
       const countResults = await mysqlQuest.query(sql);
@@ -301,7 +310,7 @@ export default class Quest extends Service {
         // 处理关系结果格式 ===> [key: target_screen_name]: {}
         const relationshipList = {};
         result.forEach((i: friendshipsProps) => {
-          console.log('i ', i);
+          // console.log('i ', i);
           // 处理 empty object
           if (!isEmpty(i)) {
             const screen_name: any = i.relationship.target.screen_name;
