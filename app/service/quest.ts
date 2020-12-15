@@ -635,6 +635,7 @@ export default class Quest extends Service {
       console.log('resultTransfer', this.ctx.userQuest);
 
       if (!resultTransfer.length) {
+        await connQuest.commit();
         return;
       }
 
