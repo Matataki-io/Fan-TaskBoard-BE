@@ -388,7 +388,7 @@ export default class Quest extends Service {
           const m = moment(nowTime).diff(moment(oldValue.lastTime), 'minutes');
           this.logger.info('diff', m);
 
-          if (m <= 1 && oldValue.friendsList.length && oldValue.friendsList[0]) { // 1分钟内请求使用内存的记录
+          if (m <= 3 && oldValue.friendsList.length && oldValue.friendsList[0]) { // 3分钟内请求使用内存的记录
             resultFriendsList = oldValue.friendsList;
           } else { // 请求列表
             await requestFriendsList();
