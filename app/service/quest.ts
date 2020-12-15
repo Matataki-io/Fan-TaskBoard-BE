@@ -625,11 +625,6 @@ export default class Quest extends Service {
   // 发放奖励
   public async receiveTransfer() {
 
-    const token = await this.getToken();
-    if (!token) {
-      throw new Error('没有token');
-    }
-
     // init mysql
     const mysqlQuest = this.app.mysql.get('quest');
     const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
@@ -641,6 +636,11 @@ export default class Quest extends Service {
 
       if (!resultTransfer.length) {
         return;
+      }
+
+      const token = await this.getToken();
+      if (!token) {
+        throw new Error('没有token');
       }
 
       // 获取最早的第一个 开始转账

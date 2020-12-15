@@ -4,4 +4,8 @@ export default class TestController extends Controller {
     const { ctx } = this;
     ctx.body = await ctx.service.test.testDb();
   }
+  public async testDbM() {
+    const { ctx } = this;
+    ctx.body = await ctx.service.test.testDbM();
+  }
 }

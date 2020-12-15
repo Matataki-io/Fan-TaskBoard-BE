@@ -19,4 +19,11 @@ export default class Test extends Service {
     this.logger.info('test db', result);
     return result;
   }
+  public async testDbM() {
+    const mysqlMatataki = this.app.mysql.get('matataki');
+
+    const resultM = await mysqlMatataki.query('SELECT * FROM users;');
+    this.logger.info('test db matataki', resultM);
+    return resultM;
+  }
 }

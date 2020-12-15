@@ -37,5 +37,6 @@ export default (app: Application) => {
   // test
   router.get('/test', controller.twitter.test);
   router.get('/testdb', controller.test.testDb);
+  router.get('/testdbm', controller.test.testDbM);
 
 };
