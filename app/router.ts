@@ -26,7 +26,6 @@ export default (app: Application) => {
 
   // 搜索twitter用户
   router.get('/users/search/twitter', controller.twitter.usersSearch);
-  router.get('/test', controller.twitter.test);
 
   // 获取Fan票列表，支持分页和搜索。
   router.get('/token/list', controller.token.getList);
@@ -34,5 +33,9 @@ export default (app: Application) => {
   // MTK API
   router.get('/user/stats', controller.mtk.userProfile);
   router.get('/account/list', controller.mtk.accountList);
+
+  // test
+  router.get('/test', controller.twitter.test);
+  router.get('/testdb', controller.test.testDb);
 
 };

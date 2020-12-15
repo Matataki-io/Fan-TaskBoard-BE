@@ -12,4 +12,11 @@ export default class Test extends Service {
   public async sayHi(name: string) {
     return `hi, ${name}`;
   }
+  public async testDb() {
+    const mysqlQuest = this.app.mysql.get('quest');
+
+    const result = await mysqlQuest.query('SELECT * FROM quests;');
+    this.logger.info('test db', result);
+    return result;
+  }
 }

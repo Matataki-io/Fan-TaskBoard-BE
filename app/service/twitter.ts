@@ -153,38 +153,32 @@ export default class Twitter extends Service {
   public async test(): Promise<any> {
     const { ctx } = this;
 
-    // const cb = new Codebird();
-    // cb.setUseProxy(true);
-    // cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
-    // cb.setToken(this.config.twitter.access_token_key, this.config.twitter.access_token_secret);
+    const cb = new Codebird();
+    cb.setUseProxy(true);
+    cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
+    cb.setToken(this.config.twitter.access_token_key, this.config.twitter.access_token_secret);
 
     try {
-      // const params = {
-      //   source_screen_name: 'XiaoTianIsMe',
-      //   target_screen_name: 'shellteo',
-      // };
-      // return new Promise((resolve: any, reject: any) => {
-      //   return cb.__call(
-      //     'friendships_show',
-      //     params,
-      //     (reply, xrate, err) => {
-      //       console.log('respo', reply);
-      //       console.log('xrate', xrate);
-      //       if (err) {
-      //         reject(err);
-      //       }
-      //       resolve(reply);
-      //     },
-      //   );
-      // });
-      const result = this.ctx.curl('https://api.smartsignature.io/users/recommend?amount=3', {
-        dataType: 'json',
-        method: 'GET',
-        contentType: 'json',
+      const params = {
+        source_screen_name: 'realmatataki',
+        target_screen_name: 'guanchao71',
+      };
+      return new Promise((resolve: any, reject: any) => {
+        return cb.__call(
+          'friendships_show',
+          params,
+          (reply, xrate, err) => {
+            console.log('respo', reply);
+            console.log('xrate', xrate);
+            if (err) {
+              reject(err);
+            }
+            resolve(reply);
+          },
+        );
       });
-      return result;
     } catch (error) {
-      ctx.logger.error('usersLookup error', error);
+      ctx.logger.error('test error', error);
       const result: any = {};
       return result;
     }
