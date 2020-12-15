@@ -4,10 +4,10 @@ import 'egg';
 declare module 'egg' {
   interface Application {
       mysql: any,
-      cache: any
+      cache: any,
+      Twitter: any
   }
 }
-
 export interface nftInterface {
   tokenId?: number,
   account: string,
@@ -66,4 +66,22 @@ export interface friendshipsProps {
       following_requested: unknown
     }
   }
+}
+
+export interface followersIdsProps {
+  ids: number[],
+  next_cursor: number,
+  next_cursor_str: string,
+  previous_cursor: number,
+  previous_cursor_str: string,
+  total_count: any,
+  httpstatus: number
+}
+
+export interface friendsIdsProps {
+  previous_cursor: number,
+  ids: number[],
+  previous_cursor_str: string,
+  next_cursor: number,
+  next_cursor_str: string
 }

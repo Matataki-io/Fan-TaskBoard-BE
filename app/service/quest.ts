@@ -43,6 +43,9 @@ interface questsListProps {
 /**
  * Quest Service
  */
+
+const TwitterFollowersMap = new Map();
+
 export default class Quest extends Service {
 
   public async CreateQuest({ type, twitter_id, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
@@ -167,7 +170,7 @@ export default class Quest extends Service {
       // [{}] [{}, {}]
       const sqlQuests = `SELECT id, uid, type, twitter_id, token_id, reward_people, reward_price, create_time FROM quests ${whereToken} ORDER BY ${orders} LIMIT ?, ?;`;
       const results = await mysqlQuest.query(sqlQuests, [ (page - 1) * size, Number(size) ]);
-      // console.log('results', results);
+      this.logger.info('results', results);
 
       // 查询用户数据
       let sqlUser = '';
@@ -281,7 +284,7 @@ export default class Quest extends Service {
       // 查询当前账户绑定的twitter
       const sqlCurrentUserTwitter = 'SELECT u.id, ua.uid, ua.account FROM users u LEFT JOIN user_accounts ua ON u.id = ua.uid WHERE u.id = ? AND ua.platform = \'twitter\';';
       const currentUserTwitter = await mysqlMatataki.query(sqlCurrentUserTwitter, [ id ]);
-      console.log('currentUserTwitter', currentUserTwitter);
+      this.logger.info('currentUserTwitter', currentUserTwitter);
 
       // 查询 Twitter 关系   TIPS: 没有找到批量查询的接口 只能一个一个去查询了....
       const relationship = async (source_screen_name: string, target: any[]) => {
@@ -305,7 +308,7 @@ export default class Quest extends Service {
 
         // 开始查询twitter关系结果
         const result: friendshipsProps[] = await Promise.all(promiseArr);
-        // console.log('result', result);
+        console.log('result', result);
 
         // 处理关系结果格式 ===> [key: target_screen_name]: {}
         const relationshipList = {};
@@ -335,9 +338,87 @@ export default class Quest extends Service {
       };
 
       // 绑定了 Twitter
+      // TODO: 屏蔽
+      // if (currentUserTwitter.length === 999999) {
+      //   await relationship(currentUserTwitter[0].account, results); // 传递 results 引用
+      // }
+
+      const handleTwitterFollowers = async (screen_name: string, target: any[]) => {
+
+        // 1: 1分钟内请求使用内存的记录
+        // 2: 请求列表
+        // 3：请求失败使用内容记录
+        // 4: 没有内存记录请求失败换另一个代替 最后都失败使用默认状态
+
+        let resultFriendsList: any[] = [];
+        const oldValue = TwitterFollowersMap.get(screen_name);
+
+        const requestFriendsList = async () => {
+          // 查询关注过的人的信息
+          resultFriendsList = await this.service.twitter.friendsList(screen_name);
+          this.logger.info('resultFriendsList', resultFriendsList);
+          // [ undefined ]
+          if (!resultFriendsList.length && !resultFriendsList[0]) {
+            this.logger.error('resultFriendsList empty', resultFriendsList);
+            resultFriendsList = [];
+
+            // 3：请求失败使用内容记录
+            if (oldValue && oldValue.friendsList.length && oldValue.friendsList[0]) {
+              resultFriendsList = oldValue.friendsList;
+            } else {
+              // 4: 没有内存记录请求失败换另一个代替 最后都失败使用默认状态
+              await relationship(screen_name, results); // 传递 results 引用
+              return;
+            }
+          } else {
+            // 写入Map
+            const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+            const currentUserVal = {
+              friendsList: resultFriendsList,
+              lastTime: time,
+            };
+            TwitterFollowersMap.set(screen_name, currentUserVal);
+            this.logger.info('TwitterFollowersMap', TwitterFollowersMap);
+          }
+        };
+
+        // 如果内存中有数据
+        if (oldValue) {
+          const nowTime = moment().format('YYYY-MM-DD HH:mm:ss');
+          const m = moment(nowTime).diff(moment(oldValue.lastTime), 'minutes');
+          this.logger.info('diff', m);
+
+          if (m <= 1 && oldValue.friendsList.length && oldValue.friendsList[0]) { // 1分钟内请求使用内存的记录
+            resultFriendsList = oldValue.friendsList;
+          } else { // 请求列表
+            await requestFriendsList();
+          }
+        } else {
+          await requestFriendsList();
+        }
+
+        // 开始处理数据
+        for (let i = 0; i < target.length; i++) {
+          const findData = resultFriendsList.find((j: any) => !isEmpty(j) && j.screen_name === target[i].twitter_id);
+          if (!isEmpty(findData)) {
+            target[i].following = true;
+          } else {
+            // 如果是关注自己
+            if (target[i].twitter_id === screen_name) {
+              target[i].following = true;
+            } else {
+              target[i].following = false;
+            }
+          }
+        }
+      };
+
       if (currentUserTwitter.length) {
-        await relationship(currentUserTwitter[0].account, results); // 传递 results 引用
+        console.log('TwitterFollowersMap', TwitterFollowersMap);
+        // 查询Twitter关系
+        await handleTwitterFollowers(currentUserTwitter[0].account, results);
       }
+
 
       return {
         count: countResults[0].count,
