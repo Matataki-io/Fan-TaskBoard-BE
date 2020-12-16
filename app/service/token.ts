@@ -6,7 +6,7 @@ import { Service } from 'egg';
 export default class Token extends Service {
   public async getList(page, pagesize, search) {
     try {
-      const searchSql = ' AND (LOWER(name) LIKE concat("%", :search, "%") OR LOWER(symbol) LIKE concat("%", :search, "%"))';
+      const searchSql = ' AND (LOWER(name) LIKE concat("%", LOWER(:search), "%") OR LOWER(symbol) LIKE concat("%", LOWER(:search), "%"))';
       const sql = `
         SELECT
           id, uid, name, symbol, decimals, logo, brief, contract_address, create_time
