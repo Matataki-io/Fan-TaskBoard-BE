@@ -40,4 +40,25 @@ export default class MTKController extends Controller {
       ctx.body = error;
     }
   }
+  public async tokenTokenList() {
+    const { ctx } = this;
+    const token = ctx.header['x-access-token'];
+    const { pagesize, order } = ctx.request.query;
+
+    try {
+      const result = await ctx.curl(`${this.config.mtkApi}/token/tokenlist?pagesize=${pagesize}&order=${order}`, {
+        dataType: 'json',
+        method: 'GET',
+        contentType: 'json',
+        headers: {
+          'x-access-token': token,
+        },
+        timeout: 30 * 1000,
+      });
+
+      ctx.body = result.data;
+    } catch (error) {
+      ctx.body = error;
+    }
+  }
 }

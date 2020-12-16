@@ -65,7 +65,7 @@ export default class Quest extends Service {
 
       for (const key in questData) {
         // 忽略type
-        if (key !== 'type' && !questData[key].trim()) {
+        if (key !== 'type' && !String(questData[key]).trim()) {
           throw new Error(`${key} 不能为空`);
         }
       }

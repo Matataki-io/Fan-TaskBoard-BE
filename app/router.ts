@@ -33,6 +33,7 @@ export default (app: Application) => {
   // MTK API
   router.get('/user/stats', controller.mtk.userProfile);
   router.get('/account/list', controller.mtk.accountList);
+  router.get('/token/tokenlist', controller.mtk.tokenTokenList);
 
   // test
   router.get('/test', controller.twitter.test);
