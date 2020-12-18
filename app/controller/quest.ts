@@ -21,14 +21,11 @@ export default class QuestController extends Controller {
     const { ctx } = this;
     const { type, twitter_id, token_id, reward_people, reward_price }: questInterface = ctx.request.body;
     const result = await ctx.service.quest.CreateQuest({ type, twitter_id, token_id, reward_people, reward_price });
-    if (result.code === 0) {
-      ctx.body = {
-        code: 0,
-        message: 'success',
-      };
-    } else {
-      ctx.body = result;
-    }
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
   }
   public async getQuest() {
     const { ctx } = this;
@@ -39,6 +36,28 @@ export default class QuestController extends Controller {
       message: 'success',
       data: result,
     };
+  }
+  public async getQuestDetail() {
+    const { ctx } = this;
+    const { id } = ctx.params;
+    const { type } = ctx.request.query;
+    const result = await ctx.service.quest.getQuestDetail({ qid: id, type });
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+  }
+  public async getQuestDetailList() {
+    const { ctx } = this;
+    const { id } = ctx.params;
+    const { type } = ctx.request.query;
+    const result = await ctx.service.quest.getQuestDetailList({ qid: id, type });
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
   }
   public async receive() {
     const { ctx } = this;

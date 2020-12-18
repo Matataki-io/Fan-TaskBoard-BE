@@ -3,6 +3,7 @@ import * as moment from 'moment';
 import { questInterface, friendshipsProps } from '../../typings/index';
 import { isEmpty } from 'lodash';
 import BigNumber from 'bignumber.js';
+import { transformForOneArray } from '../utils/index';
 
 interface paginationInterface {
   page: number,
@@ -127,9 +128,16 @@ export default class Quest extends Service {
       const result = await mysqlQuest.insert('quests', data);
       const insertSuccess = result.affectedRows === 1;
 
+      console.log('result', result);
+
       if (insertSuccess) {
-        return { code: 0 };
+        return {
+          code: 0,
+          data: result.insertId,
+        };
       }
+      throw new Error(`insertSuccess fail ${result}`);
+
     } catch (e) {
       this.logger.error('create quest error: ', e);
       return {
@@ -429,6 +437,171 @@ export default class Quest extends Service {
       return {
         count: 0,
         list: [],
+      };
+    }
+  }
+
+  public async getQuestDetail({ qid, type }) {
+    const { logger, ctx } = this;
+    const { id } = ctx.user;
+
+    logger.info('getQuestDetail', new Date());
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    const mysqlMatataki = this.app.mysql.get('matataki');
+
+    try {
+
+      if (String(type) !== '0') {
+        throw new Error('暂时只支持查询Twitter关注任务');
+      }
+
+      // 获取任务信息
+      const sqlQuest = 'SELECT id, uid, type, twitter_id, token_id, reward_people, reward_price, create_time FROM quests WHERE id = ? AND type = ?;';
+      const resultQuest = await mysqlQuest.query(sqlQuest, [ qid, type ]);
+      console.log('resultQuest', resultQuest);
+
+      if (!resultQuest.length) {
+        throw new Error('没有任务信息');
+      }
+
+      const result = resultQuest[0];
+
+      // 获取用户信息
+      const sqlUsers = 'SELECT id, username, nickname, avatar FROM users WHERE id = ?;';
+      const resultUser = await mysqlMatataki.query(sqlUsers, [ result.uid ]);
+      console.log('resultUser', resultUser);
+
+      result.username = resultUser[0].nickname || resultUser[0].username || '';
+      result.avatar = resultUser[0].avatar;
+
+      // 获取token信息
+      const sqlTokens = 'SELECT id, name, symbol, decimals, logo FROM minetokens WHERE id = ?;';
+      const resultTokens = await mysqlMatataki.query(sqlTokens, [ result.token_id ]);
+      console.log('resultTokens', resultTokens);
+
+      result.name = resultTokens[0].name;
+      result.symbol = resultTokens[0].symbol;
+      result.decimals = resultTokens[0].decimals;
+      result.logo = resultTokens[0].logo;
+
+      // 获取已经领取的数量
+      const sqlQuestsLogsCounts = 'SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;';
+      const resultQuestsLogsCounts = await mysqlQuest.query(sqlQuestsLogsCounts, [ result.id ]);
+      console.log('resultQuestsLogsCounts', resultQuestsLogsCounts);
+
+      result.received = resultQuestsLogsCounts[0].count;
+
+      // 查询是否领取
+      if (id) {
+        const sqlQuestsLogs = 'SELECT * FROM quests_logs WHERE qid = ? AND uid = ? AND type = ?;';
+        const resultQuestsLogs = await mysqlQuest.query(sqlQuestsLogs, [ qid, id, type ]);
+        console.log('resultQuestsLogs', resultQuestsLogs);
+
+        if (resultQuestsLogs.length) {
+          result.receive = true;
+        } else {
+          result.receive = false;
+        }
+      } else {
+        result.receive = false;
+      }
+
+
+      // 获取Twitter信息
+      const resultTwitterUser = await this.service.twitter.usersLookup(String(result.twitter_id));
+      console.log('resultTwitterUser', resultTwitterUser);
+      result.twitter_name = resultTwitterUser[result.twitter_id].name;
+      result.twitter_screen_name = resultTwitterUser[result.twitter_id].screen_name;
+      result.twitter_profile_image_url_https = resultTwitterUser[result.twitter_id].profile_image_url_https;
+
+      return {
+        code: 0,
+        data: result,
+      };
+    } catch (e) {
+      this.logger.error('getQuestDetail error: ', e);
+      return {
+        code: -1,
+        message: e.toString(),
+      };
+    }
+  }
+
+  public async getQuestDetailList({ qid, type }) {
+    const { logger } = this;
+    logger.info('getQuestDetailList', new Date());
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    const mysqlMatataki = this.app.mysql.get('matataki');
+
+    try {
+
+      if (String(type) !== '0') {
+        throw new Error('暂时只支持查询Twitter关注任务');
+      }
+
+      // 查询某个任务领取记录列表
+      const sqlQueststLogs = 'SELECT ql.id, ql.qid, ql.uid, ql.type, ql.create_time, qtl.token_id, qtl.amount FROM quests_logs ql LEFT JOIN quests_transfer_logs qtl ON qtl.qlogid = ql.id WHERE ql.qid = ? AND ql.type = ?;';
+      const result = await mysqlQuest.query(sqlQueststLogs, [ qid, type ]);
+      console.log('result', result);
+
+      // empty return
+      if (!result.length) {
+        return {
+          code: 0,
+          data: {
+            count: 0,
+            list: [],
+          },
+        };
+      }
+
+      // 补全用户数据和token数据
+      let sqlUsers = '';
+      result.forEach(i => {
+        sqlUsers += `SELECT id, username, nickname, avatar FROM users WHERE id = ${i.uid};`;
+      });
+      const resultUsersArray = await mysqlMatataki.query(sqlUsers);
+      const resultUsers = transformForOneArray(resultUsersArray);
+      console.log('resultUsers', resultUsers);
+
+      // 同一个token 取第一个即可
+      const sqlTokens = `SELECT id, name, symbol, decimals, logo FROM minetokens WHERE id = ${result[0].token_id};`;
+      const resultTokens = await mysqlMatataki.query(sqlTokens);
+      console.log('resultTokens', resultTokens);
+
+      result.forEach((i, idx) => {
+        // 用户信息
+        i.username = resultUsers[idx].nickname || resultUsers[idx].username || '';
+        i.avatar = resultUsers[idx].avatar;
+
+        // token 信息
+        i.name = resultTokens[0].name;
+        i.symbol = resultTokens[0].symbol;
+        i.decimals = resultTokens[0].decimals;
+        i.logo = resultTokens[0].logo;
+      });
+
+      // 统计count
+      const sqlCounts = 'SELECT COUNT(1) AS count FROM quests_logs WHERE qid = ? AND type = ?;';
+      const resultCounts = await mysqlQuest.query(sqlCounts, [ qid, type ]);
+      console.log('resultCounts', resultCounts);
+
+      return {
+        code: 0,
+        data: {
+          count: resultCounts[0].count,
+          list: result,
+        },
+      };
+    } catch (e) {
+      this.logger.error('getQuestDetailList error: ', e);
+      return {
+        code: -1,
+        message: e.toString(),
       };
     }
   }

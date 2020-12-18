@@ -354,6 +354,10 @@ export default class TwitterService extends Service {
     //   cursor: -1,
     // };
 
+    function tests() {
+      throw new Error('111');
+    }
+
     try {
     //   const result: any = await new Promise((resolve: any, reject: any) => {
 
@@ -394,7 +398,7 @@ export default class TwitterService extends Service {
       //   id: i.id,
       // }));
 
-      const result = await this.friendsList('XiaoTianIsMe');
+      const result = tests();
       return result;
     } catch (error) {
       ctx.logger.error('test error', error);
