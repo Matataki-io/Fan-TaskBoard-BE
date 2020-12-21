@@ -21,6 +21,8 @@ export default (app: Application) => {
   router.post('/quest', passport.authorize, controller.quest.CreateQuest);
   // 获取所有任务
   router.get('/quest', passport.verify, controller.quest.getQuest);
+  // 获取任务统计
+  router.get('/quest/count', passport.verify, controller.quest.questCount);
   // 获取任务详情
   router.get('/quest/:id', passport.verify, controller.quest.getQuestDetail);
   // 获取任务详情列表

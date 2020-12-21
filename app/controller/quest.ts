@@ -72,6 +72,15 @@ export default class QuestController extends Controller {
       ctx.body = result;
     }
   }
+  public async questCount() {
+    const { ctx } = this;
+    const result = await ctx.service.quest.questCount();
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+  }
   public async getNftId() {
     const { ctx } = this;
     const { id } = ctx.params;

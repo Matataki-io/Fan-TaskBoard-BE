@@ -737,6 +737,102 @@ export default class Quest extends Service {
     }
   }
 
+  public async questCount() {
+    const { logger, ctx } = this;
+    const { id } = ctx.user;
+
+    logger.info('questCount', new Date());
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    // const mysqlMatataki = this.app.mysql.get('matataki');
+
+    try {
+
+      // 查询全部任务
+      const resultsAllQuests = await mysqlQuest.query('SELECT * FROM quests;');
+      console.log('resultsAllQuests', resultsAllQuests);
+
+      // 查询全部任务数量
+      const resultsAllQuestsCount = await mysqlQuest.query('SELECT COUNT(1) AS count FROM quests;');
+      const resultsQuests = resultsAllQuestsCount[0].count;
+      console.log('resultsQuests', resultsQuests);
+
+      // 查询领取记录做计算
+      const resultsQuestsLogs = await mysqlQuest.query('SELECT qid FROM quests_logs;');
+      console.log('resultsQuestsLogs', resultsQuestsLogs);
+
+      // [ {qid: x}, {} ] ===> { x: count, y: count }
+      const questsLogs = {};
+      resultsQuestsLogs.forEach(i => {
+        if (!questsLogs[i.qid]) {
+          questsLogs[i.qid] = 0;
+        }
+        questsLogs[i.qid] = questsLogs[i.qid] += 1;
+      });
+      console.log('questsLogs', questsLogs);
+
+      // 计算待完成的 比对总量
+      // 查询领取完毕的 用总量 - 完成量
+      let completed = 0;
+      resultsAllQuests.forEach(i => {
+        if (questsLogs[i.id] >= Number(i.reward_people)) {
+          completed += 1;
+        }
+      });
+
+      console.log('completed', completed);
+
+      // 查询已完成
+      const receiveFn = async id => {
+        const resultsQuestsLogs = await mysqlQuest.query('SELECT COUNT(1) AS count FROM quests_logs WHERE uid = ?;', [ id ]);
+        console.log('resultsQuestsLogs', resultsQuestsLogs);
+        return resultsQuestsLogs[0].count;
+      };
+
+      // 我创建的
+      const createFn = async id => {
+        const resultsQuestsCount = await mysqlQuest.query('SELECT COUNT(1) AS count FROM quests WHERE uid = ?;', [ id ]);
+        console.log('resultsQuestsCount', resultsQuestsCount);
+        return resultsQuestsCount[0].count;
+      };
+
+      if (id) {
+
+        const received = await receiveFn(id);
+        const created = await createFn(id);
+
+        return {
+          code: 0,
+          data: {
+            all: resultsQuests,
+            undone: Number(resultsQuests) - Number(completed),
+            completed,
+            received,
+            created,
+          },
+        };
+      }
+
+      return {
+        code: 0,
+        data: {
+          all: resultsQuests,
+          undone: Number(resultsQuests) - Number(completed),
+          completed,
+          received: 0,
+          created: 0,
+        },
+      };
+    } catch (e) {
+      this.logger.error('questCount error: ', e);
+      return {
+        code: -1,
+        message: e.toString(),
+      };
+    }
+  }
+
   public async getToken() {
     const { logger, ctx } = this;
     logger.info('getToken', new Date());
