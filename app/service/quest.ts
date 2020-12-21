@@ -176,10 +176,6 @@ export default class Quest extends Service {
       }
 
 
-      // 查询全部任务
-      const resultsAllQuests = await mysqlQuest.query('SELECT * FROM quests;');
-      console.log('resultsAllQuests', resultsAllQuests);
-
       // 查询领取记录做计算
       const resultsQuestsLogs = await mysqlQuest.query('SELECT qid FROM quests_logs;');
       console.log('resultsQuestsLogs', resultsQuestsLogs);
