@@ -14,6 +14,7 @@ interface getQuestProps extends paginationInterface {
   account?: string
   sort?: string
   token?: string | number
+  filter?: string
 }
 
 // interface requestResult {
@@ -147,9 +148,9 @@ export default class Quest extends Service {
     }
   }
 
-  public async getQuest({ page, size, sort, token }: getQuestProps): Promise<questsListProps> {
+  public async getQuest({ page, size, sort, token, filter }: getQuestProps): Promise<questsListProps> {
     try {
-      this.logger.info('get quest', new Date(), token);
+      this.logger.info('get quest', new Date());
 
       const { ctx } = this;
       const { id } = ctx.user;
@@ -173,6 +174,160 @@ export default class Quest extends Service {
       if (token) {
         whereToken = `WHERE token_id = ${token}`;
       }
+
+
+      // 查询全部任务
+      const resultsAllQuests = await mysqlQuest.query('SELECT * FROM quests;');
+      console.log('resultsAllQuests', resultsAllQuests);
+
+      // 查询领取记录做计算
+      const resultsQuestsLogs = await mysqlQuest.query('SELECT qid FROM quests_logs;');
+      console.log('resultsQuestsLogs', resultsQuestsLogs);
+
+      // [ {qid: x}, {} ] ===> { x: count, y: count }
+      const questsLogs = {};
+      resultsQuestsLogs.forEach(i => {
+        if (!questsLogs[i.qid]) {
+          questsLogs[i.qid] = 0;
+        }
+        questsLogs[i.qid] = questsLogs[i.qid] += 1;
+      });
+      console.log('questsLogs', questsLogs);
+
+      // 处理 filter 筛选 需要判断 token 筛选
+
+      // 查询已经完成的任务
+      const completedQuests = async () => {
+        let sql = '';
+        for (const key in questsLogs) {
+          sql += `SELECT * FROM quests WHERE id = ${key} AND ${questsLogs[key]} >= reward_people;`;
+        }
+        const result = await mysqlQuest.query(sql);
+        const resultFilter = result.filter(i => !isEmpty(i));
+        return transformForOneArray(resultFilter);
+      };
+
+      // generate completed sql
+      const completedResult = async () => {
+        const res = await completedQuests();
+        let sqlWhere = '';
+        res.forEach((i, idx) => {
+          sqlWhere += `id = ${i.id}`;
+          if (idx !== res.length - 1) {
+            sqlWhere += ' OR ';
+          }
+        });
+
+        return sqlWhere;
+      };
+
+      // generate undone sql
+      const undoneResult = async () => {
+        const res = await completedQuests();
+        let sqlWhere = '';
+        res.forEach((i, idx) => {
+          sqlWhere += `id <> ${i.id}`;
+          if (idx !== res.length - 1) {
+            sqlWhere += ' AND ';
+          }
+        });
+
+        return sqlWhere;
+      };
+
+      // generate received sql
+      const receivedResult = async id => {
+        const sql = `
+        SELECT DISTINCT(q.id)
+        FROM quests q LEFT JOIN quests_logs ql ON q.id = ql.qid
+        WHERE ql.uid = ${id};`;
+        const res = await mysqlQuest.query(sql);
+        let sqlWhere = '';
+        res.forEach((i, idx) => {
+          sqlWhere += `id = ${i.id}`;
+          if (idx !== res.length - 1) {
+            sqlWhere += ' OR ';
+          }
+        });
+
+        return sqlWhere;
+      };
+
+      // 查询 count
+      let sql = 'SELECT COUNT(1) as count from quests';
+      // 处理筛选
+      if (token) {
+        sql += ` WHERE token_id = ${token}`;
+      }
+
+      // all
+      // undone
+      // completed
+      // received
+      // created
+      if (filter === 'all') {
+        // 不做处理
+      } else if (filter === 'undone') {
+
+        const _sql = await undoneResult();
+        if (whereToken) {
+          whereToken += ` AND ${_sql}`;
+        } else {
+          whereToken += `WHERE ${_sql}`;
+        }
+
+        if (token) {
+          sql += ` AND ${_sql}`;
+        } else {
+          sql += ` WHERE ${_sql}`;
+        }
+
+      } else if (filter === 'completed') {
+
+        const _sql = await completedResult();
+        if (whereToken) {
+          whereToken += ` AND ${_sql}`;
+        } else {
+          whereToken += `WHERE ${_sql}`;
+        }
+
+        if (token) {
+          sql += ` AND ${_sql}`;
+        } else {
+          sql += ` WHERE ${_sql}`;
+        }
+
+      } else if (filter === 'received' && id) {
+
+        const _sql = await receivedResult(id);
+        if (whereToken) {
+          whereToken += ` AND ${_sql}`;
+        } else {
+          whereToken += `WHERE ${_sql}`;
+        }
+
+        if (token) {
+          sql += ` AND ${_sql}`;
+        } else {
+          sql += ` WHERE ${_sql}`;
+        }
+
+      } else if (filter === 'created' && id) {
+        if (whereToken) {
+          whereToken += ` AND uid = ${id}`;
+        } else {
+          whereToken += `WHERE uid = ${id}`;
+        }
+
+        if (token) {
+          sql += ` AND uid = ${id}`;
+        } else {
+          sql += ` WHERE uid = ${id}`;
+        }
+      }
+
+      sql += ';';
+      const countResults = await mysqlQuest.query(sql);
 
       // 查询任务
       // [{}] [{}, {}]
@@ -204,15 +359,6 @@ export default class Quest extends Service {
           i.symbol = resultsMatatakiToken[idx][0].symbol || '';
         });
       }
-
-      // 查询count
-      let sql = 'SELECT COUNT(1) as count from quests';
-      // 处理筛选
-      if (token) {
-        sql += ` WHERE token_id = ${token}`;
-      }
-      sql += ';';
-      const countResults = await mysqlQuest.query(sql);
 
       // 查询已经领取的记录 计算剩余份数
       let sqlQuestsLogsCounts = '';

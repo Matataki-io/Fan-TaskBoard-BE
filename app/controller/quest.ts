@@ -10,6 +10,7 @@ interface getQuestProps extends paginationInterface {
   account?: string
   sort?: string
   token?: string | number
+  filter?: string
 }
 
 interface receiveProps {
@@ -29,8 +30,8 @@ export default class QuestController extends Controller {
   }
   public async getQuest() {
     const { ctx } = this;
-    const { page = 1, size = 20, account = '', sort = 'new', token = '' }: getQuestProps = ctx.request.query;
-    const result = await ctx.service.quest.getQuest({ page, size, account, sort, token });
+    const { page = 1, size = 20, account = '', sort = 'new', token = '', filter = '' }: getQuestProps = ctx.request.query;
+    const result = await ctx.service.quest.getQuest({ page, size, account, sort, token, filter });
     ctx.body = {
       code: 0,
       message: 'success',
