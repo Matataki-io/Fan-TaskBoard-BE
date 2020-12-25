@@ -13,20 +13,33 @@ interface getQuestProps extends paginationInterface {
   filter?: string
 }
 
-interface receiveProps {
-  qid: number,
-}
-
 export default class QuestController extends Controller {
   public async CreateQuest() {
     const { ctx } = this;
-    const { type, twitter_id, token_id, reward_people, reward_price }: questInterface = ctx.request.body;
-    const result = await ctx.service.quest.CreateQuest({ type, twitter_id, token_id, reward_people, reward_price });
-    const resultFormat = {
-      code: 0,
-      message: 'success',
-    };
-    ctx.body = Object.assign(resultFormat, result);
+    const { type, title = '', content = '', twitter_id, token_id, reward_people, reward_price }: questInterface = ctx.request.body;
+    if (Number(type) === 0) {
+      // twitter
+      const result = await ctx.service.quest.CreateQuestTwitter({ type, twitter_id, token_id, reward_people, reward_price });
+      const resultFormat = {
+        code: 0,
+        message: 'success',
+      };
+      ctx.body = Object.assign(resultFormat, result);
+    } else if (Number(type) === 1) {
+      // 自定义任务
+      const result = await ctx.service.quest.CreateQuestCustomTask({ type, title, content, token_id, reward_people, reward_price });
+      const resultFormat = {
+        code: 0,
+        message: 'success',
+      };
+      ctx.body = Object.assign(resultFormat, result);
+    } else {
+      ctx.body = {
+        code: -1,
+        message: 'faild',
+      };
+    }
+
   }
   public async getQuest() {
     const { ctx } = this;
@@ -41,8 +54,7 @@ export default class QuestController extends Controller {
   public async getQuestDetail() {
     const { ctx } = this;
     const { id } = ctx.params;
-    const { type } = ctx.request.query;
-    const result = await ctx.service.quest.getQuestDetail({ qid: id, type });
+    const result = await ctx.service.quest.getQuestDetail({ qid: id });
     const resultFormat = {
       code: 0,
       message: 'success',
@@ -62,15 +74,27 @@ export default class QuestController extends Controller {
   }
   public async receive() {
     const { ctx } = this;
-    const { qid }: receiveProps = ctx.request.body;
-    const result = await ctx.service.quest.receive(qid);
-    if (result.code === 0) {
-      ctx.body = {
+    const { type, qid, uid } = ctx.request.body;
+
+    if (Number(type) === 0) {
+      const result = await ctx.service.quest.receiveTwitter(qid);
+      const resultFormat = {
         code: 0,
         message: 'success',
       };
+      ctx.body = Object.assign(resultFormat, result);
+    } else if (Number(type) === 1) {
+      const result = await ctx.service.quest.receiveCustomTask({ type, qid, uid });
+      const resultFormat = {
+        code: 0,
+        message: 'success',
+      };
+      ctx.body = Object.assign(resultFormat, result);
     } else {
-      ctx.body = result;
+      ctx.body = {
+        code: -1,
+        message: 'faild',
+      };
     }
   }
   public async questCount() {

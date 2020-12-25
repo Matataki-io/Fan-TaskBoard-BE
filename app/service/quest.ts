@@ -49,25 +49,45 @@ interface questsListProps {
 const TwitterFollowersMap = new Map();
 
 export default class Quest extends Service {
-
-  public async CreateQuest({ type, twitter_id, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
+  // 创建任务转账
+  private async CreateQuestTransfer(type, reward_price, token_id): Promise<string> {
+    const { ctx } = this;
+    const token = ctx.header['x-access-token'];
+    // 转账
+    const resultUserTransfer = await ctx.curl(`${this.config.mtkApi}/minetoken/transfer`, {
+      dataType: 'json',
+      method: 'POST',
+      // contentType: 'json',
+      headers: {
+        'x-access-token': token,
+      },
+      timeout: 30 * 1000,
+      data: {
+        amount: Number(reward_price) * 10000,
+        memo: `Matataki Quest 任务创建奖池 - ${Number(type) === 0 ? 'Twitter 关注任务' : '自定义任务'}`,
+        to: ctx.userQuest.id,
+        tokenId: token_id,
+      },
+    });
+    console.log('CreateQuest resultUserTransfer', resultUserTransfer, token);
+    if (resultUserTransfer.status === 200 && resultUserTransfer.data.code === 0) {
+      return resultUserTransfer.data.data.tx_hash;
+    }
+    throw new Error('支付失败');
+  }
+  // 创建Twitter任务
+  public async CreateQuestTwitter({ type, twitter_id, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
     console.log('type, twitter_id, token_id, reward_people, reward_price', type, twitter_id, token_id, reward_people, reward_price);
-    this.logger.info('create quest submit', new Date());
+    this.logger.info('create quest twitter submit', new Date());
     const { ctx } = this;
     const { id } = ctx.user;
 
     try {
 
       // 判断参数
-      const questData = { type, twitter_id, token_id, reward_people, reward_price };
-      const typeList = [ 0 ];
-      if (!typeList.includes(Number(questData.type))) {
-        throw new Error('请选择任务类型');
-      }
-
+      const questData = { twitter_id, token_id, reward_people, reward_price };
       for (const key in questData) {
-        // 忽略type
-        if (key !== 'type' && !String(questData[key]).trim()) {
+        if (!String(questData[key]).trim()) {
           throw new Error(`${key} 不能为空`);
         }
       }
@@ -88,29 +108,7 @@ export default class Quest extends Service {
         throw new Error('没有托管信息');
       }
 
-      const token = ctx.header['x-access-token'];
-      // 转账
-      const resultUserTransfer = await ctx.curl(`${this.config.mtkApi}/minetoken/transfer`, {
-        dataType: 'json',
-        method: 'POST',
-        // contentType: 'json',
-        headers: {
-          'x-access-token': token,
-        },
-        timeout: 30 * 1000,
-        data: {
-          amount: Number(reward_price) * 10000,
-          memo: 'Matataki Quest 任务创建奖池',
-          to: ctx.userQuest.id,
-          tokenId: token_id,
-        },
-      });
-      console.log('CreateQuest resultUserTransfer', resultUserTransfer, token);
-      if (resultUserTransfer.status === 200 && resultUserTransfer.data.code === 0) {
-        //
-      } else {
-        throw new Error('支付失败');
-      }
+      const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
 
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
       const data: questInterface = {
@@ -120,7 +118,7 @@ export default class Quest extends Service {
         token_id,
         reward_people,
         reward_price,
-        hash: resultUserTransfer.data.data.tx_hash,
+        hash,
         create_time: time,
         update_time: time,
       };
@@ -140,10 +138,79 @@ export default class Quest extends Service {
       throw new Error(`insertSuccess fail ${result}`);
 
     } catch (e) {
-      this.logger.error('create quest error: ', e);
+      this.logger.error('create quest twitter error: ', e);
       return {
         code: -1,
-        message: `create quest error ${e}`,
+        message: `create quest twitter error ${e}`,
+      };
+    }
+  }
+  // 创建自定义任务
+  public async CreateQuestCustomTask({ type, title, content, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
+    console.log('type, title, content, token_id, reward_people, reward_price', type, title, content, token_id, reward_people, reward_price);
+    this.logger.info('create quest custom task submit', new Date());
+    const { ctx } = this;
+    const { id } = ctx.user;
+
+    try {
+      // 判断参数
+      const questData = { title, content, token_id, reward_people, reward_price };
+      for (const key in questData) {
+        if (!String(questData[key]).trim()) {
+          throw new Error(`${key} 不能为空`);
+        }
+      }
+
+      if (!(Number.isInteger(Number(questData.reward_people)) && Number(questData.reward_people) > 0)) {
+        throw new Error('奖励人数必须为整数并大于0');
+      }
+      if (!(Number(questData.reward_price) > 0)) {
+        throw new Error('奖励金额必须大于0');
+      }
+
+      // 设置托管信息
+      if (isEmpty(ctx.userQuest)) {
+        await this.getHostingInfo();
+      }
+
+      if (!ctx.userQuest.id) {
+        throw new Error('没有托管信息');
+      }
+
+      const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
+      const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+      const data: questInterface = {
+        uid: id,
+        type,
+        title,
+        content,
+        token_id,
+        reward_people,
+        reward_price,
+        hash,
+        create_time: time,
+        update_time: time,
+      };
+
+      const mysqlQuest = this.app.mysql.get('quest');
+      const result = await mysqlQuest.insert('quests', data);
+      const insertSuccess = result.affectedRows === 1;
+
+      console.log('result', result);
+
+      if (insertSuccess) {
+        return {
+          code: 0,
+          data: result.insertId,
+        };
+      }
+      throw new Error(`insertSuccess fail ${result}`);
+
+    } catch (e) {
+      this.logger.error('create quest custom task error: ', e);
+      return {
+        code: -1,
+        message: `create quest custom task error ${e}`,
       };
     }
   }
@@ -327,7 +394,7 @@ export default class Quest extends Service {
 
       // 查询任务
       // [{}] [{}, {}]
-      const sqlQuests = `SELECT id, uid, type, twitter_id, token_id, reward_people, reward_price, create_time FROM quests ${whereToken} ORDER BY ${orders} LIMIT ?, ?;`;
+      const sqlQuests = `SELECT id, uid, type, title, twitter_id, token_id, reward_people, reward_price, create_time FROM quests ${whereToken} ORDER BY ${orders} LIMIT ?, ?;`;
       const results = await mysqlQuest.query(sqlQuests, [ (page - 1) * size, Number(size) ]);
       this.logger.info('results', results);
 
@@ -348,10 +415,12 @@ export default class Quest extends Service {
       // 写入用户和token数据
       if (results.length <= 1) {
         results[0].username = resultsMatatakiUser[0].nickname || resultsMatatakiUser[0].username || '';
+        results[0].avatar = resultsMatatakiUser[0].avatar || '';
         results[0].symbol = resultsMatatakiToken[0].symbol || '';
       } else {
         results.forEach((i: any, idx: number) => {
           i.username = resultsMatatakiUser[idx][0].nickname || resultsMatatakiUser[idx][0].username || '';
+          i.avatar = resultsMatatakiUser[idx][0].avatar || '';
           i.symbol = resultsMatatakiToken[idx][0].symbol || '';
         });
       }
@@ -374,23 +443,21 @@ export default class Quest extends Service {
 
 
       // 查询 Twitter 信息
-
       // Twitter 任务 查询用户信息
-      const screenNameArr = results.map((i: any) => i.type === 0 && i.twitter_id);
-      const screenNameStr = screenNameArr.join(',');
+      const screenNameArr = results.filter((i: any) => Number(i.type) === 0 && i.twitter_id);
+      const screenNameArrs = screenNameArr.map((i: any) => i.twitter_id);
+      const screenNameStr = screenNameArrs.join(',');
 
       const usersTwitter = await this.service.twitter.usersLookup(screenNameStr);
       // console.log('usersTwitter', usersTwitter);
-
       results.forEach((i: any) => {
-        if (i.type === 0) { // Twitter 任务 查询用户信息
+        if (Number(i.type) === 0 && usersTwitter[i.twitter_id]) { // Twitter 任务 查询用户信息
           i = Object.assign(i, usersTwitter[i.twitter_id]);
         }
       });
 
       // 没有登陆不查询 Twitter 关注信息 领取信息 直接返回
       if (!id) {
-
         // 补充默认参数
         results.forEach((i: any) => {
           i.receive = false;
@@ -410,7 +477,7 @@ export default class Quest extends Service {
         sqlQuestsLogs += `SELECT * FROM quests_logs WHERE qid = ${i.id} AND uid = ${id} AND type = ${i.type};`;
       });
       const resultQuestsLogs = await mysqlQuest.query(sqlQuestsLogs);
-      // console.log('resultQuestsLogs', resultQuestsLogs);
+      console.log('resultQuestsLogs', resultQuestsLogs);
 
       if (!resultQuestsLogs.length) { // 没有领取记录
         results.forEach((i: any) => {
@@ -487,12 +554,6 @@ export default class Quest extends Service {
 
       };
 
-      // 绑定了 Twitter
-      // TODO: 屏蔽
-      // if (currentUserTwitter.length === 999999) {
-      //   await relationship(currentUserTwitter[0].account, results); // 传递 results 引用
-      // }
-
       const handleTwitterFollowers = async (screen_name: string, target: any[]) => {
 
         // 1: 1分钟内请求使用内存的记录
@@ -549,20 +610,26 @@ export default class Quest extends Service {
 
         // 开始处理数据
         for (let i = 0; i < target.length; i++) {
-          const findData = resultFriendsList.find((j: any) => !isEmpty(j) && j.screen_name === target[i].twitter_id);
-          if (!isEmpty(findData)) {
-            target[i].following = true;
-          } else {
-            // 如果是关注自己
-            if (target[i].twitter_id === screen_name) {
+          // 只处理 Twitter关注任务
+          if (Number(target[i].type) === 0) {
+            const findData = resultFriendsList.find((j: any) => !isEmpty(j) && j.screen_name === target[i].twitter_id);
+            if (!isEmpty(findData)) {
               target[i].following = true;
             } else {
-              target[i].following = false;
+              // 如果是关注自己
+              if (target[i].twitter_id === screen_name) {
+                target[i].following = true;
+              } else {
+                target[i].following = false;
+              }
             }
+          } else {
+            target[i].following = false;
           }
         }
       };
 
+      // 绑定了 Twitter
       if (currentUserTwitter.length) {
         console.log('TwitterFollowersMap', TwitterFollowersMap);
         // 查询Twitter关系
@@ -583,7 +650,7 @@ export default class Quest extends Service {
     }
   }
 
-  public async getQuestDetail({ qid, type }) {
+  public async getQuestDetail({ qid }) {
     const { logger, ctx } = this;
     const { id } = ctx.user;
 
@@ -594,14 +661,9 @@ export default class Quest extends Service {
     const mysqlMatataki = this.app.mysql.get('matataki');
 
     try {
-
-      if (String(type) !== '0') {
-        throw new Error('暂时只支持查询Twitter关注任务');
-      }
-
       // 获取任务信息
-      const sqlQuest = 'SELECT id, uid, type, twitter_id, token_id, reward_people, reward_price, create_time FROM quests WHERE id = ? AND type = ?;';
-      const resultQuest = await mysqlQuest.query(sqlQuest, [ qid, type ]);
+      const sqlQuest = 'SELECT id, uid, type, twitter_id, title, content, token_id, reward_people, reward_price, create_time FROM quests WHERE id = ?;';
+      const resultQuest = await mysqlQuest.query(sqlQuest, [ qid ]);
       console.log('resultQuest', resultQuest);
 
       if (!resultQuest.length) {
@@ -638,7 +700,7 @@ export default class Quest extends Service {
       // 查询是否领取
       if (id) {
         const sqlQuestsLogs = 'SELECT * FROM quests_logs WHERE qid = ? AND uid = ? AND type = ?;';
-        const resultQuestsLogs = await mysqlQuest.query(sqlQuestsLogs, [ qid, id, type ]);
+        const resultQuestsLogs = await mysqlQuest.query(sqlQuestsLogs, [ qid, id, result.type ]);
         console.log('resultQuestsLogs', resultQuestsLogs);
 
         if (resultQuestsLogs.length) {
@@ -650,13 +712,18 @@ export default class Quest extends Service {
         result.receive = false;
       }
 
+      // twitter 关注任务
+      if (result.type === 0) {
+        // 获取Twitter信息
+        const resultTwitterUser = await this.service.twitter.usersLookup(String(result.twitter_id));
+        console.log('resultTwitterUser', resultTwitterUser);
+        result.twitter_name = resultTwitterUser[result.twitter_id].name;
+        result.twitter_screen_name = resultTwitterUser[result.twitter_id].screen_name;
+        result.twitter_profile_image_url_https = resultTwitterUser[result.twitter_id].profile_image_url_https;
+      } else if (result.type === 1) {
+        //
+      }
 
-      // 获取Twitter信息
-      const resultTwitterUser = await this.service.twitter.usersLookup(String(result.twitter_id));
-      console.log('resultTwitterUser', resultTwitterUser);
-      result.twitter_name = resultTwitterUser[result.twitter_id].name;
-      result.twitter_screen_name = resultTwitterUser[result.twitter_id].screen_name;
-      result.twitter_profile_image_url_https = resultTwitterUser[result.twitter_id].profile_image_url_https;
 
       return {
         code: 0,
@@ -748,8 +815,9 @@ export default class Quest extends Service {
     }
   }
 
-  public async receive(qid: number) {
-    this.logger.info('receive', new Date());
+  // 领取Twitter任务
+  public async receiveTwitter(qid: string|number) {
+    this.logger.info('receiveTwitter', new Date());
 
     const { ctx } = this;
     // 获取用户 uid
@@ -790,7 +858,7 @@ export default class Quest extends Service {
       }
 
       // 判断是否满足条件
-      if (resultQuest.type === 0) { // Twitter 关注任务
+      const checkTwitter = async () => {
         // 查询当前用户是否绑定了twitter
         const sqlUser = 'SELECT u.id, ua.uid, ua.account FROM users u LEFT JOIN user_accounts ua ON u.id = ua.uid WHERE u.id = ? AND ua.platform = \'twitter\' LIMIT 0, 1;';
         const resultUser = await mysqlMatataki.query(sqlUser, [ id ]);
@@ -817,6 +885,10 @@ export default class Quest extends Service {
         } else {
           throw new Error('需要绑定Twitter账号');
         }
+      };
+
+      if (resultQuest.type === 0) { // Twitter 关注任务
+        await checkTwitter();
       } else {
         throw new Error('领取不存在的任务类型');
       }
@@ -875,6 +947,114 @@ export default class Quest extends Service {
       return {
         code: -1,
         message: `receive error${e}`,
+      };
+    }
+  }
+  // 领取自定义任务
+  public async receiveCustomTask({ type, qid, uid }) {
+    this.logger.info('receiveCustomTask', type, qid, uid, new Date());
+
+    const { ctx } = this;
+    const { id } = ctx.user;
+
+    // 设置托管信息
+    if (isEmpty(ctx.userQuest)) {
+      await this.getHostingInfo();
+    }
+
+    if (!ctx.userQuest.id) {
+      throw new Error('没有托管信息');
+    }
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    // const mysqlMatataki = this.app.mysql.get('matataki');
+    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
+
+    try {
+      // 查询任务列表 获取任务 type
+      const resultQuest = await connQuest.get('quests', { id: qid });
+      console.log('resultQuest', resultQuest);
+      if (!resultQuest) {
+        throw new Error('任务不存在');
+      }
+
+      // 暂时 只能发布者操作任务
+      if (String(resultQuest.uid) !== String(id)) {
+        throw new Error('只能发布者操作任务');
+      }
+      // 不能领取自己发布的任务
+      if (String(resultQuest.uid) === String(uid)) {
+        throw new Error('不能领取自己发布的任务');
+      }
+
+      // 查询是否领取完了
+      const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
+      // console.log('questLogCount', questLogCount);
+      if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
+        throw new Error('已经领取完了');
+      }
+
+      // 判断是否满足条件
+      if (resultQuest.type === 1) { // 自定义任务
+        //
+      } else {
+        throw new Error('领取不存在的任务类型');
+      }
+
+      // 防止重复领取
+      const resultGetQuest = await connQuest.get('quests_logs', {
+        qid,
+        uid,
+        type: resultQuest.type,
+      });
+      if (resultGetQuest) {
+        throw new Error('已经领取过了');
+      }
+
+      const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+      // 领取奖励
+      const rewardResult = await connQuest.insert('quests_logs', {
+        qid,
+        uid,
+        type: resultQuest.type,
+        create_time: time,
+      });
+      console.log('rewardResult', rewardResult);
+
+      // 发送奖励
+      // 计算获取奖励
+      const processReward = (price: string, people: string) => {
+        // console.log('1111', price, people)
+        const BN = BigNumber.clone();
+        BN.config({ DECIMAL_PLACES: 3 });
+        const single = new BN(new BN(Number(price))).dividedBy(Number(people));
+        return single.toString();
+      };
+
+      const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+      await connQuest.insert('quests_transfer_logs', {
+        qlogid: rewardResult.insertId,
+        from_id: ctx.userQuest.id,
+        to_id: uid,
+        token_id: resultQuest.token_id,
+        amount,
+        hash: '',
+        create_time: time,
+        update_time: time,
+      });
+
+      await connQuest.commit();
+
+      return {
+        code: 0,
+      };
+    } catch (e) {
+      this.logger.error('receiveCustomTask error: ', e);
+      await connQuest.rollback();
+      return {
+        code: -1,
+        message: `receiveCustomTask error${e}`,
       };
     }
   }

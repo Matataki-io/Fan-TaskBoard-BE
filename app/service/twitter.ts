@@ -95,7 +95,7 @@ export default class TwitterService extends Service {
 
       // 因为返回的搜索结果会去重 所以处理一下数据格式 screen_name: {}
       const list: {} = {};
-      console.log('result', result);
+      // console.log('result', result);
       result.forEach((i: any) => {
         if (!list[i.screen_name]) {
           list[i.screen_name] = {};
@@ -318,7 +318,7 @@ export default class TwitterService extends Service {
 
               const nextCursor = reply.next_cursor_str;
               if (nextCursor > 0) {
-                console.log('nextCursor', nextCursor);
+                // console.log('nextCursor', nextCursor);
                 params.cursor = nextCursor;
                 friendsList(params);
               } else {
@@ -330,7 +330,7 @@ export default class TwitterService extends Service {
         friendsList(params);
       });
 
-      console.log('friendsList result', result);
+      // console.log('friendsList result', result);
 
       // 合并数据
       const resultTotal = result.map(i => i.users);
