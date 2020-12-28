@@ -27,8 +27,12 @@ export default (app: Application) => {
   router.get('/quest/:id', passport.verify, controller.quest.getQuestDetail);
   // 获取任务详情列表
   router.get('/quest/:id/list', passport.verify, controller.quest.getQuestDetailList);
+  // 获取任务详情申请列表
+  router.get('/apply/:id/list', passport.verify, controller.quest.getQuestDetailApplyList);
   // 领取奖励
   router.post('/receive', passport.authorize, controller.quest.receive);
+  // 申请
+  router.post('/apply', passport.authorize, controller.quest.apply);
 
   // 搜索twitter用户
   router.get('/users/search/twitter', controller.twitter.usersSearch);

@@ -64,8 +64,17 @@ export default class QuestController extends Controller {
   public async getQuestDetailList() {
     const { ctx } = this;
     const { id } = ctx.params;
-    const { type } = ctx.request.query;
-    const result = await ctx.service.quest.getQuestDetailList({ qid: id, type });
+    const result = await ctx.service.quest.getQuestDetailList({ qid: id });
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+  }
+  public async getQuestDetailApplyList() {
+    const { ctx } = this;
+    const { id } = ctx.params;
+    const result = await ctx.service.quest.getQuestDetailApplyList({ qid: id });
     const resultFormat = {
       code: 0,
       message: 'success',
@@ -96,6 +105,18 @@ export default class QuestController extends Controller {
         message: 'faild',
       };
     }
+  }
+  public async apply() {
+    const { ctx } = this;
+    const { qid } = ctx.request.body;
+
+    const result = await ctx.service.quest.apply(qid);
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+
   }
   public async questCount() {
     const { ctx } = this;

@@ -738,7 +738,7 @@ export default class Quest extends Service {
     }
   }
 
-  public async getQuestDetailList({ qid, type }) {
+  public async getQuestDetailList({ qid }) {
     const { logger } = this;
     logger.info('getQuestDetailList', new Date());
 
@@ -748,13 +748,17 @@ export default class Quest extends Service {
 
     try {
 
-      if (String(type) !== '0') {
+      const sql = 'SELECT * FROM quests WHERE id = ? LIMIT 0, 1;';
+      const [ resultQuest ] = await mysqlQuest.query(sql, [ qid ]);
+      console.log('resultQuest', resultQuest);
+
+      if (String(resultQuest.type) !== '0') {
         throw new Error('暂时只支持查询Twitter关注任务');
       }
 
       // 查询某个任务领取记录列表
       const sqlQueststLogs = 'SELECT ql.id, ql.qid, ql.uid, ql.type, ql.create_time, qtl.token_id, qtl.amount FROM quests_logs ql LEFT JOIN quests_transfer_logs qtl ON qtl.qlogid = ql.id WHERE ql.qid = ? AND ql.type = ?;';
-      const result = await mysqlQuest.query(sqlQueststLogs, [ qid, type ]);
+      const result = await mysqlQuest.query(sqlQueststLogs, [ qid, resultQuest.type ]);
       console.log('result', result);
 
       // empty return
@@ -796,7 +800,7 @@ export default class Quest extends Service {
 
       // 统计count
       const sqlCounts = 'SELECT COUNT(1) AS count FROM quests_logs WHERE qid = ? AND type = ?;';
-      const resultCounts = await mysqlQuest.query(sqlCounts, [ qid, type ]);
+      const resultCounts = await mysqlQuest.query(sqlCounts, [ qid, resultQuest.type ]);
       console.log('resultCounts', resultCounts);
 
       return {
@@ -808,6 +812,81 @@ export default class Quest extends Service {
       };
     } catch (e) {
       this.logger.error('getQuestDetailList error: ', e);
+      return {
+        code: -1,
+        message: e.toString(),
+      };
+    }
+  }
+
+  public async getQuestDetailApplyList({ qid }) {
+    const { logger, ctx } = this;
+    const { id } = ctx.user;
+
+    logger.info('getQuestDetailApplyList', new Date());
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    const mysqlMatataki = this.app.mysql.get('matataki');
+
+    try {
+      const sql = 'SELECT * FROM quests WHERE id = ? LIMIT 0, 1;';
+      const [ resultQuest ] = await mysqlQuest.query(sql, [ qid ]);
+      console.log('resultQuest', resultQuest);
+
+      if (String(resultQuest.type) !== '1') {
+        throw new Error('暂时只支持查询自定义任务');
+      }
+
+      if (String(resultQuest.uid) !== String(id)) {
+        throw new Error('只能自己查询申请列表');
+      }
+
+      // 查询某个任务领取记录列表
+      const sqlQueststLogsCustomtask = 'SELECT qid, uid, create_time FROM quests_logs_customtask WHERE qid = ?;';
+      const result = await mysqlQuest.query(sqlQueststLogsCustomtask, [ qid ]);
+      console.log('result', result);
+
+      // empty return
+      if (!result.length) {
+        return {
+          code: 0,
+          data: {
+            count: 0,
+            list: [],
+          },
+        };
+      }
+
+      // 补全用户数据
+      let sqlUsers = '';
+      result.forEach(i => {
+        sqlUsers += `SELECT id, username, nickname, avatar FROM users WHERE id = ${i.uid};`;
+      });
+      const resultUsersArray = await mysqlMatataki.query(sqlUsers);
+      const resultUsers = transformForOneArray(resultUsersArray);
+      console.log('resultUsers', resultUsers);
+
+      result.forEach((i, idx) => {
+        // 用户信息
+        i.username = resultUsers[idx].nickname || resultUsers[idx].username || '';
+        i.avatar = resultUsers[idx].avatar;
+      });
+
+      // 统计count
+      const sqlCounts = 'SELECT COUNT(1) AS count FROM quests_logs_customtask WHERE qid = ?;';
+      const resultCounts = await mysqlQuest.query(sqlCounts, [ qid ]);
+      console.log('resultCounts', resultCounts);
+
+      return {
+        code: 0,
+        data: {
+          count: resultCounts[0].count,
+          list: result,
+        },
+      };
+    } catch (e) {
+      this.logger.error('getQuestDetailApplyList error: ', e);
       return {
         code: -1,
         message: e.toString(),
@@ -1055,6 +1134,78 @@ export default class Quest extends Service {
       return {
         code: -1,
         message: `receiveCustomTask error${e}`,
+      };
+    }
+  }
+
+  // 申请领取奖励
+  public async apply(qid: string|number) {
+    this.logger.info('apply', new Date());
+
+    const { ctx } = this;
+    // 获取用户 uid
+    const { id } = ctx.user;
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    // const mysqlMatataki = this.app.mysql.get('matataki');
+    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
+
+    try {
+      // 查询任务列表 获取任务 type
+      const resultQuest = await connQuest.get('quests', { id: qid });
+      console.log('resultQuest', resultQuest, id);
+      if (!resultQuest) {
+        throw new Error('任务不存在');
+      }
+
+      // 不能领取自己发布的任务
+      if (String(resultQuest.uid) === String(id)) {
+        throw new Error('不能申请领取自己发布的任务');
+      }
+
+      // 查询是否领取完了
+      const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
+      // console.log('questLogCount', questLogCount);
+      if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
+        throw new Error('已经领取完了');
+      }
+
+      if (resultQuest.type === 1) { // Twitter 关注任务
+        //
+      } else {
+        throw new Error('申请领取不存在的任务类型');
+      }
+
+      // 防止重复领取
+      const resultGetQuest = await connQuest.get('quests_logs_customtask', {
+        qid,
+        uid: id,
+      });
+      if (resultGetQuest) {
+        throw new Error('已经申请领取过了');
+      }
+
+      const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+      // 领取奖励
+      const rewardResult = await connQuest.insert('quests_logs_customtask', {
+        qid,
+        uid: id,
+        create_time: time,
+      });
+      console.log('rewardResult', rewardResult);
+
+      await connQuest.commit();
+
+      return {
+        code: 0,
+      };
+    } catch (e) {
+      this.logger.error('apply error: ', e);
+      await connQuest.rollback();
+      return {
+        code: -1,
+        message: `apply error${e}`,
       };
     }
   }
