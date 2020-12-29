@@ -70,7 +70,12 @@ export default class Quest extends Service {
       },
     });
     console.log('CreateQuest resultUserTransfer', resultUserTransfer, token);
-    if (resultUserTransfer.status === 200 && resultUserTransfer.data.code === 0) {
+    if (
+      resultUserTransfer.status === 200 &&
+      resultUserTransfer.data.code === 0 &&
+      resultUserTransfer.data.data &&
+      resultUserTransfer.data.data.tx_hash
+    ) {
       return resultUserTransfer.data.data.tx_hash;
     }
     throw new Error('支付失败');
@@ -703,13 +708,33 @@ export default class Quest extends Service {
         const resultQuestsLogs = await mysqlQuest.query(sqlQuestsLogs, [ qid, id, result.type ]);
         console.log('resultQuestsLogs', resultQuestsLogs);
 
+        // 自定义任务是否申请判断
+        if (Number(result.type) === 1) {
+          const sqlQuestsLogsCustomtask = 'SELECT * FROM quests_logs_customtask WHERE qid = ? AND uid = ?;';
+          const resultQuestsLogsCustomtask = await mysqlQuest.query(sqlQuestsLogsCustomtask, [ qid, id ]);
+          console.log('resultQuestsLogsCustomtask', resultQuestsLogsCustomtask);
+
+          if (resultQuestsLogsCustomtask.length) {
+            result.apply = true;
+          } else {
+            result.apply = false;
+          }
+        }
+
+
         if (resultQuestsLogs.length) {
           result.receive = true;
         } else {
           result.receive = false;
         }
+
       } else {
         result.receive = false;
+
+        // 自定义任务是否申请判断
+        if (Number(result.type) === 1) {
+          result.apply = false;
+        }
       }
 
       // twitter 关注任务
@@ -752,14 +777,10 @@ export default class Quest extends Service {
       const [ resultQuest ] = await mysqlQuest.query(sql, [ qid ]);
       console.log('resultQuest', resultQuest);
 
-      if (String(resultQuest.type) !== '0') {
-        throw new Error('暂时只支持查询Twitter关注任务');
-      }
-
       // 查询某个任务领取记录列表
       const sqlQueststLogs = 'SELECT ql.id, ql.qid, ql.uid, ql.type, ql.create_time, qtl.token_id, qtl.amount FROM quests_logs ql LEFT JOIN quests_transfer_logs qtl ON qtl.qlogid = ql.id WHERE ql.qid = ? AND ql.type = ?;';
       const result = await mysqlQuest.query(sqlQueststLogs, [ qid, resultQuest.type ]);
-      console.log('result', result);
+      console.log('result', result, qid, resultQuest.type);
 
       // empty return
       if (!result.length) {
@@ -902,14 +923,6 @@ export default class Quest extends Service {
     // 获取用户 uid
     const { id } = ctx.user;
 
-    // 设置托管信息
-    if (isEmpty(ctx.userQuest)) {
-      await this.getHostingInfo();
-    }
-
-    if (!ctx.userQuest.id) {
-      throw new Error('没有托管信息');
-    }
 
     // init mysql
     const mysqlQuest = this.app.mysql.get('quest');
@@ -917,6 +930,16 @@ export default class Quest extends Service {
     const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
 
     try {
+
+      // 设置托管信息
+      if (isEmpty(ctx.userQuest)) {
+        await this.getHostingInfo();
+      }
+
+      if (!ctx.userQuest.id) {
+        throw new Error('没有托管信息');
+      }
+
       // 查询任务列表 获取任务 type
       const resultQuest = await connQuest.get('quests', { id: qid });
       console.log('resultQuest', resultQuest);
@@ -1029,114 +1052,6 @@ export default class Quest extends Service {
       };
     }
   }
-  // 领取自定义任务
-  public async receiveCustomTask({ type, qid, uid }) {
-    this.logger.info('receiveCustomTask', type, qid, uid, new Date());
-
-    const { ctx } = this;
-    const { id } = ctx.user;
-
-    // 设置托管信息
-    if (isEmpty(ctx.userQuest)) {
-      await this.getHostingInfo();
-    }
-
-    if (!ctx.userQuest.id) {
-      throw new Error('没有托管信息');
-    }
-
-    // init mysql
-    const mysqlQuest = this.app.mysql.get('quest');
-    // const mysqlMatataki = this.app.mysql.get('matataki');
-    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
-
-    try {
-      // 查询任务列表 获取任务 type
-      const resultQuest = await connQuest.get('quests', { id: qid });
-      console.log('resultQuest', resultQuest);
-      if (!resultQuest) {
-        throw new Error('任务不存在');
-      }
-
-      // 暂时 只能发布者操作任务
-      if (String(resultQuest.uid) !== String(id)) {
-        throw new Error('只能发布者操作任务');
-      }
-      // 不能领取自己发布的任务
-      if (String(resultQuest.uid) === String(uid)) {
-        throw new Error('不能领取自己发布的任务');
-      }
-
-      // 查询是否领取完了
-      const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
-      // console.log('questLogCount', questLogCount);
-      if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
-        throw new Error('已经领取完了');
-      }
-
-      // 判断是否满足条件
-      if (resultQuest.type === 1) { // 自定义任务
-        //
-      } else {
-        throw new Error('领取不存在的任务类型');
-      }
-
-      // 防止重复领取
-      const resultGetQuest = await connQuest.get('quests_logs', {
-        qid,
-        uid,
-        type: resultQuest.type,
-      });
-      if (resultGetQuest) {
-        throw new Error('已经领取过了');
-      }
-
-      const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
-      // 领取奖励
-      const rewardResult = await connQuest.insert('quests_logs', {
-        qid,
-        uid,
-        type: resultQuest.type,
-        create_time: time,
-      });
-      console.log('rewardResult', rewardResult);
-
-      // 发送奖励
-      // 计算获取奖励
-      const processReward = (price: string, people: string) => {
-        // console.log('1111', price, people)
-        const BN = BigNumber.clone();
-        BN.config({ DECIMAL_PLACES: 3 });
-        const single = new BN(new BN(Number(price))).dividedBy(Number(people));
-        return single.toString();
-      };
-
-      const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
-      await connQuest.insert('quests_transfer_logs', {
-        qlogid: rewardResult.insertId,
-        from_id: ctx.userQuest.id,
-        to_id: uid,
-        token_id: resultQuest.token_id,
-        amount,
-        hash: '',
-        create_time: time,
-        update_time: time,
-      });
-
-      await connQuest.commit();
-
-      return {
-        code: 0,
-      };
-    } catch (e) {
-      this.logger.error('receiveCustomTask error: ', e);
-      await connQuest.rollback();
-      return {
-        code: -1,
-        message: `receiveCustomTask error${e}`,
-      };
-    }
-  }
 
   // 申请领取奖励
   public async apply(qid: string|number) {
@@ -1206,6 +1121,171 @@ export default class Quest extends Service {
       return {
         code: -1,
         message: `apply error${e}`,
+      };
+    }
+  }
+  // 申请同意
+  public async applyAgree({ qid, uid }) {
+    this.logger.info('applyAgree', new Date());
+
+    const { ctx } = this;
+    const { id } = ctx.user;
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    // const mysqlMatataki = this.app.mysql.get('matataki');
+    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
+
+    try {
+
+      // 设置托管信息
+      if (isEmpty(ctx.userQuest)) {
+        await this.getHostingInfo();
+      }
+
+      if (!ctx.userQuest.id) {
+        throw new Error('没有托管信息');
+      }
+
+      // 查询任务列表 获取任务 type
+      const resultQuest = await connQuest.get('quests', { id: qid });
+      console.log('resultQuest', resultQuest, id);
+      if (!resultQuest) {
+        throw new Error('任务不存在');
+      }
+
+      // 暂时 只能发布者操作任务
+      if (String(resultQuest.uid) !== String(id)) {
+        throw new Error('只能发布者操作任务');
+      }
+      // 不能领取自己发布的任务
+      if (String(resultQuest.uid) === String(uid)) {
+        throw new Error('不能领取自己发布的任务');
+      }
+
+      // 查询是否领取完了
+      const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
+      // console.log('questLogCount', questLogCount);
+      if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
+        throw new Error('已经领取完了');
+      }
+
+      if (resultQuest.type === 1) { // Twitter 关注任务
+        //
+      } else {
+        throw new Error('申请领取不存在的任务类型');
+      }
+
+      // 防止重复领取
+      const resultGetQuest = await connQuest.get('quests_logs', {
+        qid,
+        uid,
+        type: resultQuest.type,
+      });
+      if (resultGetQuest) {
+        throw new Error('已经申请领取过了');
+      }
+
+      const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+      // 领取奖励
+      const rewardResult = await connQuest.insert('quests_logs', {
+        qid,
+        uid,
+        type: resultQuest.type,
+        create_time: time,
+      });
+      console.log('rewardResult', rewardResult);
+
+      // 发送奖励
+      // 计算获取奖励
+      const processReward = (price: string, people: string) => {
+        // console.log('1111', price, people)
+        const BN = BigNumber.clone();
+        BN.config({ DECIMAL_PLACES: 3 });
+        const single = new BN(new BN(Number(price))).dividedBy(Number(people));
+        return single.toString();
+      };
+
+      const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+      await connQuest.insert('quests_transfer_logs', {
+        qlogid: rewardResult.insertId,
+        from_id: ctx.userQuest.id,
+        to_id: uid,
+        token_id: resultQuest.token_id,
+        amount,
+        hash: '',
+        create_time: time,
+        update_time: time,
+      });
+
+      // 删除记录
+      await connQuest.delete('quests_logs_customtask', {
+        qid,
+        uid,
+      });
+
+      await connQuest.commit();
+
+      return {
+        code: 0,
+      };
+    } catch (e) {
+      this.logger.error('applyAgree error: ', e);
+      await connQuest.rollback();
+      return {
+        code: -1,
+        message: `applyAgree error${e}`,
+      };
+    }
+  }
+  // 申请拒绝
+  public async applyReject({ qid, uid }) {
+    this.logger.info('applyReject', new Date());
+
+    const { ctx } = this;
+    const { id } = ctx.user;
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    // const mysqlMatataki = this.app.mysql.get('matataki');
+    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
+
+    try {
+      // 查询任务列表 获取任务 type
+      const resultQuest = await connQuest.get('quests', { id: qid });
+      console.log('resultQuest', resultQuest, id);
+      if (!resultQuest) {
+        throw new Error('任务不存在');
+      }
+
+      // 暂时 只能发布者操作任务
+      if (String(resultQuest.uid) !== String(id)) {
+        throw new Error('只能发布者操作任务');
+      }
+
+      if (resultQuest.type === 1) { // Twitter 关注任务
+        //
+      } else {
+        throw new Error('申请领取不存在的任务类型');
+      }
+
+      // 删除记录
+      await connQuest.delete('quests_logs_customtask', {
+        qid,
+        uid,
+      });
+
+      await connQuest.commit();
+
+      return {
+        code: 0,
+      };
+    } catch (e) {
+      this.logger.error('applyReject error: ', e);
+      await connQuest.rollback();
+      return {
+        code: -1,
+        message: `applyReject error${e}`,
       };
     }
   }

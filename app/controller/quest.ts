@@ -83,28 +83,13 @@ export default class QuestController extends Controller {
   }
   public async receive() {
     const { ctx } = this;
-    const { type, qid, uid } = ctx.request.body;
-
-    if (Number(type) === 0) {
-      const result = await ctx.service.quest.receiveTwitter(qid);
-      const resultFormat = {
-        code: 0,
-        message: 'success',
-      };
-      ctx.body = Object.assign(resultFormat, result);
-    } else if (Number(type) === 1) {
-      const result = await ctx.service.quest.receiveCustomTask({ type, qid, uid });
-      const resultFormat = {
-        code: 0,
-        message: 'success',
-      };
-      ctx.body = Object.assign(resultFormat, result);
-    } else {
-      ctx.body = {
-        code: -1,
-        message: 'faild',
-      };
-    }
+    const { qid } = ctx.request.body;
+    const result = await ctx.service.quest.receiveTwitter(qid);
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
   }
   public async apply() {
     const { ctx } = this;
@@ -116,7 +101,27 @@ export default class QuestController extends Controller {
       message: 'success',
     };
     ctx.body = Object.assign(resultFormat, result);
+  }
+  public async applyAgree() {
+    const { ctx } = this;
+    const { qid, uid } = ctx.request.body;
+    const result = await ctx.service.quest.applyAgree({ qid, uid });
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+  }
+  public async applyReject() {
+    const { ctx } = this;
+    const { qid, uid } = ctx.request.body;
 
+    const result = await ctx.service.quest.applyReject({ qid, uid });
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
   }
   public async questCount() {
     const { ctx } = this;

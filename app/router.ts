@@ -33,6 +33,10 @@ export default (app: Application) => {
   router.post('/receive', passport.authorize, controller.quest.receive);
   // 申请
   router.post('/apply', passport.authorize, controller.quest.apply);
+  // 申请同意
+  router.post('/apply/agree', passport.authorize, controller.quest.applyAgree);
+  // 申请拒绝
+  router.delete('/apply/reject', passport.authorize, controller.quest.applyReject);
 
   // 搜索twitter用户
   router.get('/users/search/twitter', controller.twitter.usersSearch);
