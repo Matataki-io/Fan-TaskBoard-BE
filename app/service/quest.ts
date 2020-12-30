@@ -1342,6 +1342,11 @@ export default class Quest extends Service {
       const resultsQuestsTwitter = resultsAllQuestsTwitterCount[0].count;
       console.log('resultsQuestsTwitter', resultsQuestsTwitter);
 
+      // 查询自定义任务数量
+      const resultsAllQuestsCustomtaskCount = await mysqlQuest.query('SELECT COUNT(1) AS count FROM quests WHERE type = 1;');
+      const resultsQuestsCustomtask = resultsAllQuestsCustomtaskCount[0].count;
+      console.log('resultsQuestsCustomtask', resultsQuestsCustomtask);
+
       // 查询领取记录做计算
       const resultsQuestsLogs = await mysqlQuest.query('SELECT qid FROM quests_logs;');
       console.log('resultsQuestsLogs', resultsQuestsLogs);
@@ -1395,6 +1400,7 @@ export default class Quest extends Service {
             received,
             created,
             type_twitter: resultsQuestsTwitter,
+            type_customtask: resultsQuestsCustomtask,
           },
         };
       }
@@ -1408,6 +1414,7 @@ export default class Quest extends Service {
           received: 0,
           created: 0,
           type_twitter: resultsQuestsTwitter,
+          type_customtask: resultsQuestsCustomtask,
         },
       };
     } catch (e) {
