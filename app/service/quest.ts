@@ -319,7 +319,7 @@ export default class Quest extends Service {
           }
         });
 
-        return `(${sqlWhere})`;
+        return sqlWhere;
       };
 
       // handle type query sql
@@ -371,7 +371,7 @@ export default class Quest extends Service {
       } else if (filter === 'undone') {
 
         let _sql = await undoneResult();
-        _sql = handleTypeQuery(_sql);
+        _sql = handleTypeQuery(`(${_sql})`);
 
         if (whereToken) {
           whereToken += ` AND ${_sql}`;
@@ -388,7 +388,7 @@ export default class Quest extends Service {
       } else if (filter === 'completed') {
 
         let _sql = await completedResult();
-        _sql = handleTypeQuery(_sql);
+        _sql = handleTypeQuery(`(${_sql})`);
 
         if (whereToken) {
           whereToken += ` AND ${_sql}`;
@@ -405,7 +405,7 @@ export default class Quest extends Service {
       } else if (filter === 'received' && id) {
 
         let _sql = await receivedResult(id);
-        _sql = handleTypeQuery(_sql);
+        _sql = handleTypeQuery(`(${_sql})`);
 
         if (whereToken) {
           whereToken += ` AND ${_sql}`;
