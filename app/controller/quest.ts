@@ -126,7 +126,8 @@ export default class QuestController extends Controller {
   }
   public async questCount() {
     const { ctx } = this;
-    const result = await ctx.service.quest.questCount();
+    const { type = '' } = ctx.request.query;
+    const result = await ctx.service.quest.questCount(type);
     const resultFormat = {
       code: 0,
       message: 'success',
