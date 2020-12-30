@@ -14,6 +14,7 @@ interface getQuestProps extends paginationInterface {
   account?: string
   sort?: string
   token?: string | number
+  type?: string
   filter?: string
 }
 
@@ -220,9 +221,9 @@ export default class Quest extends Service {
     }
   }
 
-  public async getQuest({ page, size, sort, token, filter }: getQuestProps): Promise<questsListProps> {
+  public async getQuest({ page, size, sort, token, type, filter }: getQuestProps): Promise<questsListProps> {
     try {
-      this.logger.info('get quest', new Date());
+      this.logger.info('get quest', type, new Date());
 
       const { ctx } = this;
       const { id } = ctx.user;
@@ -321,6 +322,17 @@ export default class Quest extends Service {
         return sqlWhere;
       };
 
+      // handle type query sql
+      const handleTypeQuery = (sql: string): string => {
+        let _sql: string = sql;
+        if (type === 'twitter') {
+          _sql += ' AND type = 0';
+        } else if (type === 'customtask') {
+          _sql += ' AND type = 1';
+        }
+        return _sql;
+      };
+
       // 查询 count
       let sql = 'SELECT COUNT(1) as count from quests';
       // 处理筛选
@@ -334,10 +346,33 @@ export default class Quest extends Service {
       // received
       // created
       if (filter === 'all') {
-        // 不做处理
+        // 不做 filter 处理
+
+        let _sql = '';
+        if (type === 'twitter') {
+          _sql += 'type = 0';
+        } else if (type === 'customtask') {
+          _sql += 'type = 1';
+        }
+
+        if (_sql) {
+          if (whereToken) {
+            whereToken += ` AND ${_sql}`;
+          } else {
+            whereToken += `WHERE ${_sql}`;
+          }
+
+          if (token) {
+            sql += ` AND ${_sql}`;
+          } else {
+            sql += ` WHERE ${_sql}`;
+          }
+        }
       } else if (filter === 'undone') {
 
-        const _sql = await undoneResult();
+        let _sql = await undoneResult();
+        _sql = handleTypeQuery(_sql);
+
         if (whereToken) {
           whereToken += ` AND ${_sql}`;
         } else {
@@ -352,7 +387,9 @@ export default class Quest extends Service {
 
       } else if (filter === 'completed') {
 
-        const _sql = await completedResult();
+        let _sql = await completedResult();
+        _sql = handleTypeQuery(_sql);
+
         if (whereToken) {
           whereToken += ` AND ${_sql}`;
         } else {
@@ -367,7 +404,9 @@ export default class Quest extends Service {
 
       } else if (filter === 'received' && id) {
 
-        const _sql = await receivedResult(id);
+        let _sql = await receivedResult(id);
+        _sql = handleTypeQuery(_sql);
+
         if (whereToken) {
           whereToken += ` AND ${_sql}`;
         } else {
@@ -381,16 +420,19 @@ export default class Quest extends Service {
         }
 
       } else if (filter === 'created' && id) {
+        let _sql = `uid = ${id}`;
+        _sql = handleTypeQuery(_sql);
+
         if (whereToken) {
-          whereToken += ` AND uid = ${id}`;
+          whereToken += ` AND ${_sql}`;
         } else {
-          whereToken += `WHERE uid = ${id}`;
+          whereToken += `WHERE ${_sql}`;
         }
 
         if (token) {
-          sql += ` AND uid = ${id}`;
+          sql += ` AND ${_sql}`;
         } else {
-          sql += ` WHERE uid = ${id}`;
+          sql += ` WHERE ${_sql}`;
         }
       }
 
