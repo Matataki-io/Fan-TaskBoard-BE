@@ -467,6 +467,7 @@ export default class Quest extends Service {
         results.forEach((i: any) => {
           i.receive = false;
           i.following = false;
+          i.apply = false;
         });
 
         return {
@@ -496,6 +497,30 @@ export default class Quest extends Service {
             results[idx].receive = true;
           } else {
             results[idx].receive = false;
+          }
+        });
+      }
+
+      // 查询是否已经申请
+      let sqlQuestsLogsCustomtask = '';
+      results.forEach((i: any) => {
+        sqlQuestsLogsCustomtask += `SELECT * FROM quests_logs_customtask WHERE qid = ${i.id} AND uid = ${id};`;
+      });
+      const resultQuestsLogsCustomtask = await mysqlQuest.query(sqlQuestsLogsCustomtask);
+      console.log('resultQuestsLogsCustomtask', resultQuestsLogsCustomtask);
+
+      if (!resultQuestsLogsCustomtask.length) { // 没有领取记录
+        results.forEach((i: any) => {
+          i.apply = false;
+        });
+      } else if (resultQuestsLogsCustomtask.length <= 1) { // 一条记录
+        results[0].apply = true;
+      } else { // 多条记录
+        resultQuestsLogsCustomtask.forEach((i: any, idx: number) => {
+          if (i.length) { // 已经领取
+            results[idx].apply = true;
+          } else {
+            results[idx].apply = false;
           }
         });
       }
