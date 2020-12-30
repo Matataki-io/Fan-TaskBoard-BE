@@ -93,9 +93,9 @@ export default class QuestController extends Controller {
   }
   public async apply() {
     const { ctx } = this;
-    const { qid } = ctx.request.body;
+    const { qid, remark } = ctx.request.body;
 
-    const result = await ctx.service.quest.apply(qid);
+    const result = await ctx.service.quest.apply(qid, remark);
     const resultFormat = {
       code: 0,
       message: 'success',

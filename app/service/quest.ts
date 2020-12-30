@@ -889,7 +889,7 @@ export default class Quest extends Service {
       }
 
       // 查询某个任务领取记录列表
-      const sqlQueststLogsCustomtask = 'SELECT qid, uid, create_time FROM quests_logs_customtask WHERE qid = ?;';
+      const sqlQueststLogsCustomtask = 'SELECT qid, uid, remark, create_time FROM quests_logs_customtask WHERE qid = ?;';
       const result = await mysqlQuest.query(sqlQueststLogsCustomtask, [ qid ]);
       console.log('result', result);
 
@@ -1079,7 +1079,7 @@ export default class Quest extends Service {
   }
 
   // 申请领取奖励
-  public async apply(qid: string|number) {
+  public async apply(qid: string|number, remark: string) {
     this.logger.info('apply', new Date());
 
     const { ctx } = this;
@@ -1131,6 +1131,7 @@ export default class Quest extends Service {
       const rewardResult = await connQuest.insert('quests_logs_customtask', {
         qid,
         uid: id,
+        remark,
         create_time: time,
       });
       console.log('rewardResult', rewardResult);
