@@ -14,9 +14,8 @@ logs/
 
 app/**/*.js
 test/**/*.js
-config/**/*.js
-config/**/*.ts
-config copy/**/*.ts
+config/**/config.*.js
+config/**/config.*.ts
 app/**/*.map
 test/**/*.map
 config/**/*.map
