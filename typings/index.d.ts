@@ -30,6 +30,7 @@ export interface questInterface {
   type: number,
   title?: string,
   content?: string,
+  key?: string,
   twitter_id?: number,
   token_id: number,
   reward_people: string,

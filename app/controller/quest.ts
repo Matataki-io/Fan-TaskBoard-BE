@@ -17,7 +17,7 @@ interface getQuestProps extends paginationInterface {
 export default class QuestController extends Controller {
   public async CreateQuest() {
     const { ctx } = this;
-    const { type, title = '', content = '', twitter_id, token_id, reward_people, reward_price }: questInterface = ctx.request.body;
+    const { type, title = '', content = '', key = '', twitter_id, token_id, reward_people, reward_price }: questInterface = ctx.request.body;
     if (Number(type) === 0) {
       // twitter
       const result = await ctx.service.quest.CreateQuestTwitter({ type, twitter_id, token_id, reward_people, reward_price });
@@ -36,7 +36,7 @@ export default class QuestController extends Controller {
       ctx.body = Object.assign(resultFormat, result);
     } else if (Number(type) === 2) {
       // 口令红包
-      const result = await ctx.service.quest.CreateQuestKey({ type, title, content, token_id, reward_people, reward_price });
+      const result = await ctx.service.quest.CreateQuestKey({ type, title, content, key, token_id, reward_people, reward_price });
       const resultFormat = {
         code: 0,
         message: 'success',

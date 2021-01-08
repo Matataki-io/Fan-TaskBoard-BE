@@ -219,7 +219,8 @@ export default class Quest extends Service {
       };
     }
   }
-  public async CreateQuestKey({ type, title, content, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
+  // 创建key任务
+  public async CreateQuestKey({ type, title, content, key, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
     this.logger.info('create quest key submit', new Date());
     const { ctx } = this;
     const { id } = ctx.user;
@@ -251,13 +252,13 @@ export default class Quest extends Service {
 
       const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
-      const key = random(32, { numbers: false });
+      const randomKey = random(32, { numbers: false });
       const data: questKeyInterface = {
         uid: id,
         type,
         title,
         content,
-        key,
+        key: key || randomKey,
         token_id,
         reward_people,
         reward_price,
@@ -812,7 +813,8 @@ export default class Quest extends Service {
 
     try {
       // 获取任务信息
-      const sqlQuest = 'SELECT id, uid, type, twitter_id, title, content, token_id, reward_people, reward_price, create_time FROM quests WHERE id = ?;';
+      const sqlQuestShowKey = id ? ' `key`, ' : ' '; // 登陆显示key
+      const sqlQuest = `SELECT id, uid, type, twitter_id, title, content,${sqlQuestShowKey}token_id, reward_people, reward_price, create_time FROM quests WHERE id = ?;`;
       const resultQuest = await mysqlQuest.query(sqlQuest, [ qid ]);
       console.log('resultQuest', resultQuest);
 
@@ -891,6 +893,8 @@ export default class Quest extends Service {
         result.twitter_screen_name = resultTwitterUser[result.twitter_id].screen_name;
         result.twitter_profile_image_url_https = resultTwitterUser[result.twitter_id].profile_image_url_https;
       } else if (result.type === 1) {
+        //
+      } else if (result.type === 2) {
         //
       }
 
