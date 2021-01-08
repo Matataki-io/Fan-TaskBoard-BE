@@ -874,7 +874,7 @@ export default class Quest extends Service {
           result.receive = false;
         }
 
-        if (Number(result.uid) === Number(id)) {
+        if (Number(result.type) === 2 && (Number(result.uid) === Number(id))) {
           const sql = 'SELECT `key` FROM quests WHERE id = ?;';
           const resultQuestsKey = await mysqlQuest.query(sql, [ result.id ]);
           console.log('resultQuestsKey', resultQuestsKey);
