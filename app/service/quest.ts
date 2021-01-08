@@ -399,6 +399,8 @@ export default class Quest extends Service {
           _sql += ' AND type = 0';
         } else if (type === 'customtask') {
           _sql += ' AND type = 1';
+        } else if (type === 'key') {
+          _sql += ' AND type = 2';
         }
         return _sql;
       };
@@ -423,6 +425,8 @@ export default class Quest extends Service {
           _sql += 'type = 0';
         } else if (type === 'customtask') {
           _sql += 'type = 1';
+        } else if (type === 'key') {
+          _sql += 'type = 2';
         }
 
         if (_sql) {
