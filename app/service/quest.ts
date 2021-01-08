@@ -813,8 +813,7 @@ export default class Quest extends Service {
 
     try {
       // 获取任务信息
-      const sqlQuestShowKey = id ? ' `key`, ' : ' '; // 登陆显示key
-      const sqlQuest = `SELECT id, uid, type, twitter_id, title, content,${sqlQuestShowKey}token_id, reward_people, reward_price, create_time FROM quests WHERE id = ?;`;
+      const sqlQuest = 'SELECT id, uid, type, twitter_id, title, content, token_id, reward_people, reward_price, create_time FROM quests WHERE id = ?;';
       const resultQuest = await mysqlQuest.query(sqlQuest, [ qid ]);
       console.log('resultQuest', resultQuest);
 
@@ -873,6 +872,13 @@ export default class Quest extends Service {
           result.receive = true;
         } else {
           result.receive = false;
+        }
+
+        if (Number(result.uid) === Number(id)) {
+          const sql = 'SELECT `key` FROM quests WHERE id = ?;';
+          const resultQuestsKey = await mysqlQuest.query(sql, [ result.id ]);
+          console.log('resultQuestsKey', resultQuestsKey);
+          result.key = resultQuestsKey[0].key;
         }
 
       } else {
