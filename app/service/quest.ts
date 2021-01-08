@@ -1577,6 +1577,12 @@ export default class Quest extends Service {
       const resultsQuestsCustomtask = resultsAllQuestsCustomtaskCount[0].count;
       console.log('resultsQuestsCustomtask', resultsQuestsCustomtask);
 
+      // 查询key任务数量
+      const resultsAllQuestsKeyCount = await mysqlQuest.query('SELECT COUNT(1) AS count FROM quests WHERE type = 2;');
+      const resultsQuestsKey = resultsAllQuestsKeyCount[0].count;
+      console.log('resultsQuestsKey', resultsQuestsKey);
+
+
       // -----
 
       // handle type sql query
@@ -1587,6 +1593,8 @@ export default class Quest extends Service {
           _sql += `${_where}type = 0`;
         } else if (type === 'customtask') {
           _sql += `${_where}type = 1`;
+        } else if (type === 'key') {
+          _sql += `${_where}type = 2`;
         }
         return `${_sql};`;
       };
@@ -1649,6 +1657,7 @@ export default class Quest extends Service {
             type_all: resultsQuests,
             type_twitter: resultsQuestsTwitter,
             type_customtask: resultsQuestsCustomtask,
+            type_key: resultsQuestsKey,
             all: resultsTypeQuests,
             undone: Number(resultsTypeQuests) - Number(completed),
             completed,
@@ -1664,6 +1673,7 @@ export default class Quest extends Service {
           type_all: resultsQuests,
           type_twitter: resultsQuestsTwitter,
           type_customtask: resultsQuestsCustomtask,
+          type_key: resultsQuestsKey,
           all: resultsTypeQuests,
           undone: Number(resultsTypeQuests) - Number(completed),
           completed,
