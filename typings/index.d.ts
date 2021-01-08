@@ -8,6 +8,7 @@ declare module 'egg' {
       Twitter: any
   }
 }
+
 export interface nftInterface {
   tokenId?: number,
   account: string,
@@ -36,6 +37,10 @@ export interface questInterface {
   hash?: string,
   create_time?: string,
   update_time?: string,
+}
+
+export interface questKeyInterface extends questInterface {
+  key?: string,
 }
 
 export interface friendshipsProps {

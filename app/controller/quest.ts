@@ -34,6 +34,14 @@ export default class QuestController extends Controller {
         message: 'success',
       };
       ctx.body = Object.assign(resultFormat, result);
+    } else if (Number(type) === 2) {
+      // 口令红包
+      const result = await ctx.service.quest.CreateQuestKey({ type, title, content, token_id, reward_people, reward_price });
+      const resultFormat = {
+        code: 0,
+        message: 'success',
+      };
+      ctx.body = Object.assign(resultFormat, result);
     } else {
       ctx.body = {
         code: -1,
@@ -86,6 +94,16 @@ export default class QuestController extends Controller {
     const { ctx } = this;
     const { qid } = ctx.request.body;
     const result = await ctx.service.quest.receiveTwitter(qid);
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+  }
+  public async receiveKey() {
+    const { ctx } = this;
+    const { qid, key } = ctx.request.body;
+    const result = await ctx.service.quest.receiveKey({ qid, key });
     const resultFormat = {
       code: 0,
       message: 'success',

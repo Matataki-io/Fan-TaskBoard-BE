@@ -31,6 +31,9 @@ export default (app: Application) => {
   router.get('/apply/:id/list', passport.verify, controller.quest.getQuestDetailApplyList);
   // 领取奖励
   router.post('/receive', passport.authorize, controller.quest.receive);
+  // 领取奖励 key
+  router.post('/receive/key', passport.authorize, controller.quest.receiveKey);
+
   // 申请
   router.post('/apply', passport.authorize, controller.quest.apply);
   // 申请同意

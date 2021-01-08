@@ -1,10 +1,10 @@
 import { Service } from 'egg';
 import * as moment from 'moment';
-import { questInterface, friendshipsProps } from '../../typings/index';
+import { questInterface, questKeyInterface, friendshipsProps } from '../../typings/index';
 import { isEmpty } from 'lodash';
 import BigNumber from 'bignumber.js';
 import { transformForOneArray } from '../utils/index';
-
+import * as random from 'string-random';
 interface paginationInterface {
   page: number,
   size: number,
@@ -217,6 +217,76 @@ export default class Quest extends Service {
       return {
         code: -1,
         message: `create quest custom task error ${e}`,
+      };
+    }
+  }
+  public async CreateQuestKey({ type, title, content, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
+    this.logger.info('create quest key submit', new Date());
+    const { ctx } = this;
+    const { id } = ctx.user;
+
+    try {
+      // 判断参数
+      const questData = { title, content, token_id, reward_people, reward_price };
+      for (const key in questData) {
+        if (!String(questData[key]).trim()) {
+          throw new Error(`${key} 不能为空`);
+        }
+      }
+
+      if (!(Number.isInteger(Number(questData.reward_people)) && Number(questData.reward_people) > 0)) {
+        throw new Error('奖励人数必须为整数并大于0');
+      }
+      if (!(Number(questData.reward_price) > 0)) {
+        throw new Error('奖励金额必须大于0');
+      }
+
+      // 设置托管信息
+      if (isEmpty(ctx.userQuest)) {
+        await this.getHostingInfo();
+      }
+
+      if (!ctx.userQuest.id) {
+        throw new Error('没有托管信息');
+      }
+
+      // const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
+      const hash = 'hash';
+      const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+      const key = random(32, { numbers: false });
+      const data: questKeyInterface = {
+        uid: id,
+        type,
+        title,
+        content,
+        key,
+        token_id,
+        reward_people,
+        reward_price,
+        hash,
+        create_time: time,
+        update_time: time,
+      };
+
+      const mysqlQuest = this.app.mysql.get('quest');
+      const result = await mysqlQuest.insert('quests', data);
+      const insertSuccess = result.affectedRows === 1;
+
+      console.log('result', result);
+
+      if (insertSuccess) {
+        return {
+          code: 0,
+          data: result.insertId,
+        };
+      }
+      throw new Error(`insertSuccess fail ${result}`);
+
+    } catch (e) {
+      this.logger.error('create quest key error: ', e);
+      return {
+        code: -1,
+        message: `create quest key error ${e}`,
       };
     }
   }
@@ -1064,6 +1134,118 @@ export default class Quest extends Service {
 
       if (resultQuest.type === 0) { // Twitter 关注任务
         await checkTwitter();
+      } else {
+        throw new Error('领取不存在的任务类型');
+      }
+
+      // 防止重复领取
+      const resultGetQuest = await connQuest.get('quests_logs', {
+        qid,
+        uid: id,
+        type: resultQuest.type,
+      });
+      if (resultGetQuest) {
+        throw new Error('已经领取过了');
+      }
+
+      const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+
+      // 领取奖励
+      const rewardResult = await connQuest.insert('quests_logs', {
+        qid,
+        uid: id,
+        type: resultQuest.type,
+        create_time: time,
+      });
+      console.log('rewardResult', rewardResult);
+
+      // 发送奖励
+      // 计算获取奖励
+      const processReward = (price: string, people: string) => {
+        // console.log('1111', price, people)
+        const BN = BigNumber.clone();
+        BN.config({ DECIMAL_PLACES: 3 });
+        const single = new BN(new BN(Number(price))).dividedBy(Number(people));
+        return single.toString();
+      };
+
+      const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+      await connQuest.insert('quests_transfer_logs', {
+        qlogid: rewardResult.insertId,
+        from_id: ctx.userQuest.id,
+        to_id: id,
+        token_id: resultQuest.token_id,
+        amount,
+        hash: '',
+        create_time: time,
+        update_time: time,
+      });
+
+      await connQuest.commit();
+
+      return {
+        code: 0,
+      };
+    } catch (e) {
+      this.logger.error('receive error: ', e);
+      await connQuest.rollback();
+      return {
+        code: -1,
+        message: `receive error${e}`,
+      };
+    }
+  }
+
+  // 领取Key任务
+  public async receiveKey({ qid, key }) {
+    this.logger.info('receiveTwitter', key, new Date());
+
+    const { ctx } = this;
+    // 获取用户 uid
+    const { id } = ctx.user;
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
+
+    try {
+      // 设置托管信息
+      if (isEmpty(ctx.userQuest)) {
+        await this.getHostingInfo();
+      }
+
+      if (!ctx.userQuest.id) {
+        throw new Error('没有托管信息');
+      }
+
+      // 查询任务列表 获取任务 type
+      const resultQuest = await connQuest.get('quests', { id: qid });
+      console.log('resultQuest', resultQuest);
+      if (!resultQuest) {
+        throw new Error('任务不存在');
+      }
+
+      // 不能领取自己发布的任务
+      if (String(resultQuest.uid) === String(id)) {
+        throw new Error('不能领取自己发布的任务');
+      }
+
+      // 查询是否领取完了
+      const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
+      // console.log('questLogCount', questLogCount);
+      if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
+        throw new Error('已经领取完了');
+      }
+
+      // 判断是否满足条件
+      const checkKey = () => {
+        if (resultQuest.key !== key) {
+          throw new Error('口令不正确');
+        }
+      };
+
+      if (resultQuest.type === 2) {
+        await checkKey();
       } else {
         throw new Error('领取不存在的任务类型');
       }
