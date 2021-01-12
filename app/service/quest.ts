@@ -1558,39 +1558,61 @@ export default class Quest extends Service {
     }
   }
 
-  public async questCount(type: string) {
+  public async questCount({ type, token }) {
     const { logger, ctx } = this;
     const { id } = ctx.user;
 
-    logger.info('questCount', new Date());
+    logger.info('questCount', token, new Date());
 
     // init mysql
     const mysqlQuest = this.app.mysql.get('quest');
     // const mysqlMatataki = this.app.mysql.get('matataki');
 
+    // 处理 token 筛选
+    const whereToken = token ? `WHERE token_id = ${token}` : '';
+
+    // sql 全部任务
+    const sqlAllQuests = `SELECT * FROM quests ${whereToken};`;
+    //  sql 全部任务数量
+    const sqlAllQuestsCount = 'SELECT COUNT(1) AS count FROM quests';
+    //  sql 领取记录
+    const sqlQuestsLogs = 'SELECT q.id, ql.qid, q.type, q.token_id FROM quests_logs ql LEFT JOIN quests q ON ql.qid = q.id';
+
     try {
       // 查询全部任务
-      const resultsAllQuests = await mysqlQuest.query('SELECT * FROM quests;');
+      const resultsAllQuests = await mysqlQuest.query(sqlAllQuests);
       console.log('resultsAllQuests', resultsAllQuests.length);
 
       // 查询全部任务数量
-      // const resultsAllQuestsCount = await mysqlQuest.query('SELECT COUNT(1) AS count FROM quests;');
-      // const resultsQuests = resultsAllQuestsCount[0].count;
-      // console.log('resultsQuests', resultsQuests);
       const resultsQuests = resultsAllQuests.length;
 
+      // handle type token sql query
+      const handleTokenTypeSql = ({ sql, token, type, where = false }) => {
+        let _sql: string = sql;
+        const _where = where ? ' AND ' : ' WHERE ';
+        const _token = token ? `token_id = ${token} AND ` : '';
+        const _type = `type = ${type}`;
+        _sql += `${_where}${_token}${_type}`;
+        return `${_sql};`;
+      };
+
       // 查询Twitter任务数量
-      const resultsAllQuestsTwitterCount = await mysqlQuest.query('SELECT COUNT(1) AS count FROM quests WHERE type = 0;');
+      const sqlAllQuestsTwitterCount = handleTokenTypeSql({ sql: sqlAllQuestsCount, token, type: 0, where: false });
+      console.log('sqlAllQuestsTwitterCount', sqlAllQuestsTwitterCount);
+
+      const resultsAllQuestsTwitterCount = await mysqlQuest.query(sqlAllQuestsTwitterCount);
       const resultsQuestsTwitter = resultsAllQuestsTwitterCount[0].count;
       console.log('resultsQuestsTwitter', resultsQuestsTwitter);
 
       // 查询自定义任务数量
-      const resultsAllQuestsCustomtaskCount = await mysqlQuest.query('SELECT COUNT(1) AS count FROM quests WHERE type = 1;');
+      const sqlAllQuestsCustomtaskCount = handleTokenTypeSql({ sql: sqlAllQuestsCount, token, type: 1, where: false });
+      const resultsAllQuestsCustomtaskCount = await mysqlQuest.query(sqlAllQuestsCustomtaskCount);
       const resultsQuestsCustomtask = resultsAllQuestsCustomtaskCount[0].count;
       console.log('resultsQuestsCustomtask', resultsQuestsCustomtask);
 
       // 查询key任务数量
-      const resultsAllQuestsKeyCount = await mysqlQuest.query('SELECT COUNT(1) AS count FROM quests WHERE type = 2;');
+      const sqlAllQuestsKeyCount = handleTokenTypeSql({ sql: sqlAllQuestsCount, token, type: 2, where: false });
+      const resultsAllQuestsKeyCount = await mysqlQuest.query(sqlAllQuestsKeyCount);
       const resultsQuestsKey = resultsAllQuestsKeyCount[0].count;
       console.log('resultsQuestsKey', resultsQuestsKey);
 
@@ -1598,26 +1620,46 @@ export default class Quest extends Service {
       // -----
 
       // handle type sql query
-      const handleTypeSql = (sql: string, where = false) => {
+      const handleTypeAndTokenSql = ({ sql, type, token, where = false }) => {
         let _sql: string = sql;
         const _where = where ? ' AND ' : ' WHERE ';
+        const _token = token ? `token_id = ${token} AND ` : '';
+
         if (type === 'twitter') {
-          _sql += `${_where}type = 0`;
+          _sql += `${_where}${_token}type = 0`;
         } else if (type === 'customtask') {
-          _sql += `${_where}type = 1`;
+          _sql += `${_where}${_token}type = 1`;
         } else if (type === 'key') {
-          _sql += `${_where}type = 2`;
+          _sql += `${_where}${_token}type = 2`;
+        } else {
+          if (token) {
+            _sql += `${_where}token_id = ${token}`;
+          }
+        }
+        return `${_sql};`;
+      };
+      const handleTypeAndTokenQuestLogsSql = ({ sql, type, token, where = false }) => {
+        let _sql: string = sql;
+        const _where = where ? ' AND ' : ' WHERE ';
+        const _token = token ? `q.token_id = ${token} AND ` : '';
+
+        if (type === 'twitter') {
+          _sql += `${_where}${_token}q.type = 0`;
+        } else if (type === 'customtask') {
+          _sql += `${_where}${_token}q.type = 1`;
+        } else if (type === 'key') {
+          _sql += `${_where}${_token}q.type = 2`;
         }
         return `${_sql};`;
       };
       // 查询全部任务数量
-      const sqlAll = handleTypeSql('SELECT COUNT(1) AS count FROM quests');
+      const sqlAll = handleTypeAndTokenSql({ sql: sqlAllQuestsCount, type, token, where: false });
       const resultsTypeAllQuestsCount = await mysqlQuest.query(sqlAll);
       const resultsTypeQuests = resultsTypeAllQuestsCount[0].count;
       // console.log('resultsTypeQuests', resultsTypeQuests);
 
       // 查询领取记录做计算
-      const sqlQLogs = handleTypeSql('SELECT qid FROM quests_logs');
+      const sqlQLogs = handleTypeAndTokenQuestLogsSql({ sql: sqlQuestsLogs, type, token, where: false });
       const resultsQuestsLogs = await mysqlQuest.query(sqlQLogs);
       console.log('resultsQuestsLogs', resultsQuestsLogs);
 
@@ -1644,16 +1686,18 @@ export default class Quest extends Service {
 
       // 查询已完成
       const receiveFn = async id => {
-        const _sql = handleTypeSql('SELECT COUNT(1) AS count FROM quests_logs WHERE uid = ?', true);
-        const resultsQuestsLogs = await mysqlQuest.query(_sql, [ id ]);
+        const _sql = 'SELECT COUNT(1) AS count FROM quests_logs ql LEFT JOIN quests q ON ql.qid = q.id WHERE ql.uid = ?';
+        const _sqlResult = handleTypeAndTokenQuestLogsSql({ sql: _sql, type, token, where: true });
+        const resultsQuestsLogs = await mysqlQuest.query(_sqlResult, [ id ]);
         console.log('resultsQuestsLogs', resultsQuestsLogs);
         return resultsQuestsLogs[0].count;
       };
 
       // 我创建的
       const createFn = async id => {
-        const _sql = handleTypeSql('SELECT COUNT(1) AS count FROM quests WHERE uid = ?', true);
-        const resultsQuestsCount = await mysqlQuest.query(_sql, [ id ]);
+        const _sql = 'SELECT COUNT(1) AS count FROM quests WHERE uid = ?';
+        const _sqlResult = handleTypeAndTokenSql({ sql: _sql, type, token, where: true });
+        const resultsQuestsCount = await mysqlQuest.query(_sqlResult, [ id ]);
         console.log('resultsQuestsCount', resultsQuestsCount);
         return resultsQuestsCount[0].count;
       };

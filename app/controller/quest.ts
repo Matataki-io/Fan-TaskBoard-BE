@@ -35,7 +35,7 @@ export default class QuestController extends Controller {
       };
       ctx.body = Object.assign(resultFormat, result);
     } else if (Number(type) === 2) {
-      // 口令红包
+      // 解谜任务
       const result = await ctx.service.quest.CreateQuestKey({ type, title, content, key, token_id, reward_people, reward_price });
       const resultFormat = {
         code: 0,
@@ -144,8 +144,8 @@ export default class QuestController extends Controller {
   }
   public async questCount() {
     const { ctx } = this;
-    const { type = '' } = ctx.request.query;
-    const result = await ctx.service.quest.questCount(type);
+    const { type = '', token = '' } = ctx.request.query;
+    const result = await ctx.service.quest.questCount({ type, token });
     const resultFormat = {
       code: 0,
       message: 'success',
