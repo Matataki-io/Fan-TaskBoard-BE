@@ -1,6 +1,6 @@
 import { Service } from 'egg';
 import * as moment from 'moment';
-import { questInterface, questKeyInterface, friendshipsProps } from '../../typings/index';
+import { questInterface, questKeyInterface, friendshipsProps, UpdateQuestProps } from '../../typings/index';
 import { isEmpty } from 'lodash';
 import BigNumber from 'bignumber.js';
 import { transformForOneArray } from '../utils/index';
@@ -286,6 +286,87 @@ export default class Quest extends Service {
       return {
         code: -1,
         message: `create quest key error ${e}`,
+      };
+    }
+  }
+  // 更新任务
+  public async UpdateQuest({ qid, type, title, content, key }: UpdateQuestProps) {
+    this.logger.info('UpdateQuest', new Date());
+    this.logger.info('UpdateQuest', qid, type, title, content, key);
+
+    const { logger, ctx } = this;
+    const { id } = ctx.user;
+    const mysqlQuest = this.app.mysql.get('quest');
+
+    try {
+
+      if (String(type) === '0' || String(type) === '1') {
+        if (title && content) {
+          //
+        } else {
+          throw new Error('标题或内容不能为空');
+        }
+      } else if (String(type) === '2') {
+        if (title && content && key) {
+          //
+        } else {
+          throw new Error('标题、内容或口令不能为空');
+        }
+      }
+
+      // 判断任务是否存在
+      const resultQuest = await mysqlQuest.get('quests', {
+        id: qid,
+      });
+      if (!resultQuest) {
+        throw new Error('没有任务信息');
+      }
+      logger.info('resultQuest', resultQuest);
+
+      // 判断是否自己
+      if (String(id) !== String(resultQuest.uid)) {
+        throw new Error('只能修改自己发布的任务');
+      }
+
+      // 根据 type 生成 Row
+      const generateRow = (type: string) => {
+        if (type === '0' || type === '1') {
+          return {
+            id: qid,
+            title,
+            content,
+          };
+        } else if (type === '2') {
+          return {
+            id: qid,
+            title,
+            content,
+            key,
+          };
+        }
+        throw new Error('任务类型错误');
+      };
+
+      let row = Object.create(null);
+      row = generateRow(String(type));
+
+      // 更新信息
+      const resultUpdateQuest = await mysqlQuest.update('quests', row); // 更新 posts 表中的记录
+      logger.info('resultUpdateQuest', resultUpdateQuest);
+
+      // 判断更新成功
+      const updateQuestSuccess = resultUpdateQuest.affectedRows === 1;
+      if (updateQuestSuccess) {
+        return {
+          code: 0,
+        };
+      }
+      throw new Error(`任务更新失败${resultUpdateQuest}`);
+    } catch (error) {
+      logger.error('UpdateQuest error: ', error);
+      return {
+        code: -1,
+        message: error.toString(),
       };
     }
   }

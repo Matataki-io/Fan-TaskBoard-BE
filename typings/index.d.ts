@@ -44,6 +44,14 @@ export interface questKeyInterface extends questInterface {
   key?: string,
 }
 
+export interface UpdateQuestProps {
+  qid: string|number,
+  type: string|number,
+  title: string,
+  content: string,
+  key: string,
+}
+
 export interface friendshipsProps {
   relationship: {
     source: {

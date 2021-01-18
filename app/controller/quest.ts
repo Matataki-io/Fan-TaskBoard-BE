@@ -48,7 +48,17 @@ export default class QuestController extends Controller {
         message: 'faild',
       };
     }
-
+  }
+  public async UpdateQuest() {
+    const { ctx } = this;
+    const { id } = ctx.params;
+    const { type, title = '', content = '', key = '' } = ctx.request.body;
+    const result = await ctx.service.quest.UpdateQuest({ qid: id, type, title: title.trim(), content: content.trim(), key: key.trim() });
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
   }
   public async getQuest() {
     const { ctx } = this;
