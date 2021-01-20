@@ -1427,13 +1427,6 @@ export default class Quest extends Service {
         throw new Error('不能申请领取自己发布的任务');
       }
 
-      // 查询是否领取完了
-      const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
-      // console.log('questLogCount', questLogCount);
-      if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
-        throw new Error('已经领取完了');
-      }
-
       if (resultQuest.type === 1) { // Twitter 关注任务
         //
       } else {
