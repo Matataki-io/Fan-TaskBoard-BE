@@ -3,7 +3,7 @@ import * as jwt from 'jwt-simple';
 export default {
   // 验证登录，未登录抛异常
   async authorize(ctx, next) {
-    const token = ctx.header['x-access-token'];
+    const token = ctx.cookies.get('access-token');
 
     // 没有authorization token信息
     if (token === undefined) {
@@ -38,7 +38,8 @@ export default {
   },
   // 验证登录token，未登录不抛异常
   async verify(ctx, next) {
-    const token = ctx.header['x-access-token'];
+    const token = ctx.cookies.get('access-token');
+
     ctx.user = {};
     ctx.user.isAuthenticated = false;
 

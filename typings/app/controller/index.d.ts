@@ -2,6 +2,7 @@
 // Do not modify this file!!!!!!!!!
 
 import 'egg';
+import ExportCookie from '../../../app/controller/cookie';
 import ExportHome from '../../../app/controller/home';
 import ExportMtk from '../../../app/controller/mtk';
 import ExportNft from '../../../app/controller/nft';
@@ -13,6 +14,7 @@ import ExportTwitter from '../../../app/controller/twitter';
 
 declare module 'egg' {
   interface IController {
+    cookie: ExportCookie;
     home: ExportHome;
     mtk: ExportMtk;
     nft: ExportNft;

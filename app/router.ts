@@ -54,6 +54,10 @@ export default (app: Application) => {
   router.get('/account/list', controller.mtk.accountList);
   router.get('/token/tokenlist', controller.mtk.tokenTokenList);
 
+  // set cookie
+  router.post('/cookie', controller.cookie.index);
+  router.put('/cookie', controller.cookie.remove);
+
   // test
   router.get('/test', controller.twitter.test);
   router.get('/testdb', controller.test.testDb);

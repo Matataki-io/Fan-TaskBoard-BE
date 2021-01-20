@@ -53,7 +53,7 @@ export default class Quest extends Service {
   // 创建任务转账
   private async CreateQuestTransfer(type, reward_price, token_id): Promise<string> {
     const { ctx } = this;
-    const token = ctx.header['x-access-token'];
+    const token = ctx.cookies.get('access-token');
     // 转账
     const resultUserTransfer = await ctx.curl(`${this.config.mtkApi}/minetoken/transfer`, {
       dataType: 'json',
