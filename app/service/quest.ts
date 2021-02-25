@@ -1957,6 +1957,7 @@ export default class Quest extends Service {
       const _sql = `SELECT qtl.id, qtl.to_id, qtl.token_id, qtl.amount, qtl.create_time, ql.qid
       FROM quests_transfer_logs qtl LEFT JOIN quests_logs ql ON qtl.qlogid = ql.id
       WHERE qtl.\`hash\` = '' ORDER BY qtl.create_time ASC;`;
+      console.log('_sql', _sql);
       const resultRewards = await mysqlQuest.query(_sql);
       // console.log(resultRewards);
 
