@@ -162,6 +162,15 @@ export default class QuestController extends Controller {
     };
     ctx.body = Object.assign(resultFormat, result);
   }
+  public async pendingRewards() {
+    const { ctx } = this;
+    const result = await ctx.service.quest.pendingRewards();
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+  }
   public async getNftId() {
     const { ctx } = this;
     const { id } = ctx.params;

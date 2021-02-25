@@ -49,6 +49,9 @@ export default (app: Application) => {
   // 获取Fan票列表，支持分页和搜索。
   router.get('/token/list', controller.token.getList);
 
+  // 待发放奖励
+  router.get('/pendingRewards', controller.quest.pendingRewards);
+
   // MTK API
   router.get('/user/stats', controller.mtk.userProfile);
   router.get('/account/list', controller.mtk.accountList);

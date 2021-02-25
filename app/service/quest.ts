@@ -1945,4 +1945,60 @@ export default class Quest extends Service {
       await connQuest.rollback();
     }
   }
+
+  // 待发放奖励列表
+  public async pendingRewards() {
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    const mysqlMatataki = this.app.mysql.get('matataki');
+
+    try {
+      const _sql = `SELECT qtl.id, qtl.to_id, qtl.token_id, qtl.amount, qtl.create_time, ql.qid
+      FROM quests_transfer_logs qtl LEFT JOIN quests_logs ql ON qtl.qlogid = ql.id
+      WHERE qtl.\`hash\` = '' ORDER BY qtl.create_time ASC;`;
+      const resultRewards = await mysqlQuest.query(_sql);
+      // console.log(resultRewards);
+
+      // 获取用户信息
+      let sqlUser = '';
+      resultRewards.forEach((i: any) => {
+        sqlUser += `SELECT username, nickname, avatar FROM users WHERE id = ${i.to_id};`;
+      });
+      const resultsMatatakiUser = await mysqlMatataki.query(sqlUser);
+      const resultsMatatakiUserFlat = transformForOneArray(resultsMatatakiUser);
+      // console.log('resultsMatatakiUserFlat', resultsMatatakiUserFlat);
+      resultRewards.forEach((i: any, idx: number) => {
+        i.username = resultsMatatakiUserFlat[idx].nickname || resultsMatatakiUserFlat[idx].username || '';
+        i.avatar = resultsMatatakiUserFlat[idx].avatar || '';
+      });
+
+      let sqlToken = '';
+      resultRewards.forEach((i: any) => {
+        sqlToken += `SELECT name, symbol, decimals, logo FROM minetokens WHERE id = ${i.token_id};`;
+      });
+      const resultsMatatakiToken = await mysqlMatataki.query(sqlToken);
+      const resultsMatatakiTokenFlat = transformForOneArray(resultsMatatakiToken);
+      // console.log('resultsMatatakiTokenFlat', resultsMatatakiTokenFlat);
+      resultRewards.forEach((i: any, idx: number) => {
+        i.name = resultsMatatakiTokenFlat[idx].name || '';
+        i.symbol = resultsMatatakiTokenFlat[idx].symbol || '';
+        i.decimals = resultsMatatakiTokenFlat[idx].decimals || '';
+        i.logo = resultsMatatakiTokenFlat[idx].logo || '';
+      });
+
+      return {
+        code: 0,
+        data: {
+          count: resultRewards.length,
+          list: resultRewards,
+        },
+      };
+    } catch (e) {
+      this.logger.error('pendingRewards error: ', e);
+      return {
+        code: -1,
+      };
+    }
+  }
 }
