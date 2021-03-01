@@ -131,6 +131,15 @@ export default class QuestController extends Controller {
     };
     ctx.body = Object.assign(resultFormat, result);
   }
+  public async applyAll() {
+    const { ctx } = this;
+    const result = await ctx.service.quest.applyAll();
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+  }
   public async applyAgree() {
     const { ctx } = this;
     const { qid, uid } = ctx.request.body;

@@ -70,7 +70,7 @@ export default class Quest extends Service {
         tokenId: token_id,
       },
     });
-    console.log('CreateQuest resultUserTransfer', resultUserTransfer, token);
+    this.logger.info('CreateQuest resultUserTransfer', resultUserTransfer, token);
     if (
       resultUserTransfer.status === 200 &&
       resultUserTransfer.data.code === 0 &&
@@ -83,7 +83,7 @@ export default class Quest extends Service {
   }
   // 创建Twitter任务
   public async CreateQuestTwitter({ type, twitter_id, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
-    console.log('type, twitter_id, token_id, reward_people, reward_price', type, twitter_id, token_id, reward_people, reward_price);
+    this.logger.info('type, twitter_id, token_id, reward_people, reward_price', type, twitter_id, token_id, reward_people, reward_price);
     this.logger.info('create quest twitter submit', new Date());
     const { ctx } = this;
     const { id } = ctx.user;
@@ -132,7 +132,7 @@ export default class Quest extends Service {
       const result = await mysqlQuest.insert('quests', data);
       const insertSuccess = result.affectedRows === 1;
 
-      console.log('result', result);
+      this.logger.info('result', result);
 
       if (insertSuccess) {
         return {
@@ -152,7 +152,7 @@ export default class Quest extends Service {
   }
   // 创建自定义任务
   public async CreateQuestCustomTask({ type, title, content, token_id, reward_people, reward_price }: questInterface) :Promise<any> {
-    console.log('type, title, content, token_id, reward_people, reward_price', type, title, content, token_id, reward_people, reward_price);
+    this.logger.info('type, title, content, token_id, reward_people, reward_price', type, title, content, token_id, reward_people, reward_price);
     this.logger.info('create quest custom task submit', new Date());
     const { ctx } = this;
     const { id } = ctx.user;
@@ -201,7 +201,7 @@ export default class Quest extends Service {
       const result = await mysqlQuest.insert('quests', data);
       const insertSuccess = result.affectedRows === 1;
 
-      console.log('result', result);
+      this.logger.info('result', result);
 
       if (insertSuccess) {
         return {
@@ -271,7 +271,7 @@ export default class Quest extends Service {
       const result = await mysqlQuest.insert('quests', data);
       const insertSuccess = result.affectedRows === 1;
 
-      console.log('result', result);
+      this.logger.info('result', result);
 
       if (insertSuccess) {
         return {
@@ -401,7 +401,7 @@ export default class Quest extends Service {
 
       // 查询领取记录做计算
       const resultsQuestsLogs = await mysqlQuest.query('SELECT qid FROM quests_logs;');
-      console.log('resultsQuestsLogs', resultsQuestsLogs);
+      this.logger.info('resultsQuestsLogs', resultsQuestsLogs);
 
       // [ {qid: x}, {} ] ===> { x: count, y: count }
       const questsLogs = {};
@@ -411,7 +411,7 @@ export default class Quest extends Service {
         }
         questsLogs[i.qid] = questsLogs[i.qid] += 1;
       });
-      console.log('questsLogs', questsLogs);
+      this.logger.info('questsLogs', questsLogs);
 
       // 处理 filter 筛选 需要判断 token 筛选
 
@@ -638,7 +638,7 @@ export default class Quest extends Service {
         sqlQuestsLogsCounts += `SELECT COUNT(1) as count FROM quests_logs WHERE qid = ${i.id};`;
       });
       const resultQuestsLogsCount = await mysqlQuest.query(sqlQuestsLogsCounts);
-      // console.log('resultQuestsLogsCount', resultQuestsLogsCount);
+      // this.logger.info('resultQuestsLogsCount', resultQuestsLogsCount);
 
       if (results.length <= 1) {
         results[0].received = resultQuestsLogsCount[0].count;
@@ -656,7 +656,7 @@ export default class Quest extends Service {
       const screenNameStr = screenNameArrs.join(',');
 
       const usersTwitter = await this.service.twitter.usersLookup(screenNameStr);
-      // console.log('usersTwitter', usersTwitter);
+      // this.logger.info('usersTwitter', usersTwitter);
       results.forEach((i: any) => {
         if (Number(i.type) === 0 && usersTwitter[i.twitter_id]) { // Twitter 任务 查询用户信息
           i = Object.assign(i, usersTwitter[i.twitter_id]);
@@ -685,7 +685,7 @@ export default class Quest extends Service {
         sqlQuestsLogs += `SELECT * FROM quests_logs WHERE qid = ${i.id} AND uid = ${id} AND type = ${i.type};`;
       });
       const resultQuestsLogs = await mysqlQuest.query(sqlQuestsLogs);
-      console.log('resultQuestsLogs', resultQuestsLogs);
+      this.logger.info('resultQuestsLogs', resultQuestsLogs);
 
       if (!resultQuestsLogs.length) { // 没有领取记录
         results.forEach((i: any) => {
@@ -709,7 +709,7 @@ export default class Quest extends Service {
         sqlQuestsLogsCustomtask += `SELECT * FROM quests_logs_customtask WHERE qid = ${i.id} AND uid = ${id};`;
       });
       const resultQuestsLogsCustomtask = await mysqlQuest.query(sqlQuestsLogsCustomtask);
-      console.log('resultQuestsLogsCustomtask', resultQuestsLogsCustomtask);
+      this.logger.info('resultQuestsLogsCustomtask', resultQuestsLogsCustomtask);
 
       if (!resultQuestsLogsCustomtask.length) { // 没有领取记录
         results.forEach((i: any) => {
@@ -747,7 +747,7 @@ export default class Quest extends Service {
           const arr = i.split(',');
           return arr[0] !== arr[1];
         });
-        console.log('argumentsArr', argumentsArrDedupeFilter);
+        this.logger.info('argumentsArr', argumentsArrDedupeFilter);
 
         // 准备查询语句
         const promiseArr: any[] = [];
@@ -757,12 +757,12 @@ export default class Quest extends Service {
 
         // 开始查询twitter关系结果
         const result: friendshipsProps[] = await Promise.all(promiseArr);
-        console.log('result', result);
+        this.logger.info('result', result);
 
         // 处理关系结果格式 ===> [key: target_screen_name]: {}
         const relationshipList = {};
         result.forEach((i: friendshipsProps) => {
-          // console.log('i ', i);
+          // this.logger.info('i ', i);
           // 处理 empty object
           if (!isEmpty(i)) {
             const screen_name: any = i.relationship.target.screen_name;
@@ -772,7 +772,7 @@ export default class Quest extends Service {
             relationshipList[screen_name] = i;
           }
         });
-        console.log('relationshipList', relationshipList);
+        this.logger.info('relationshipList', relationshipList);
 
         // 循环target 根据 screen_name 匹配 relationshipList 的结果
         target.forEach((i: any, idx: number) => {
@@ -863,7 +863,7 @@ export default class Quest extends Service {
 
       // 绑定了 Twitter
       if (currentUserTwitter.length) {
-        console.log('TwitterFollowersMap', TwitterFollowersMap);
+        this.logger.info('TwitterFollowersMap', TwitterFollowersMap);
         // 查询Twitter关系
         await handleTwitterFollowers(currentUserTwitter[0].account, results);
       }
@@ -896,7 +896,7 @@ export default class Quest extends Service {
       // 获取任务信息
       const sqlQuest = 'SELECT id, uid, type, twitter_id, title, content, token_id, reward_people, reward_price, create_time FROM quests WHERE id = ?;';
       const resultQuest = await mysqlQuest.query(sqlQuest, [ qid ]);
-      console.log('resultQuest', resultQuest);
+      this.logger.info('resultQuest', resultQuest);
 
       if (!resultQuest.length) {
         throw new Error('没有任务信息');
@@ -907,7 +907,7 @@ export default class Quest extends Service {
       // 获取用户信息
       const sqlUsers = 'SELECT id, username, nickname, avatar FROM users WHERE id = ?;';
       const resultUser = await mysqlMatataki.query(sqlUsers, [ result.uid ]);
-      console.log('resultUser', resultUser);
+      this.logger.info('resultUser', resultUser);
 
       result.username = resultUser[0].nickname || resultUser[0].username || '';
       result.avatar = resultUser[0].avatar;
@@ -915,7 +915,7 @@ export default class Quest extends Service {
       // 获取token信息
       const sqlTokens = 'SELECT id, name, symbol, decimals, logo FROM minetokens WHERE id = ?;';
       const resultTokens = await mysqlMatataki.query(sqlTokens, [ result.token_id ]);
-      console.log('resultTokens', resultTokens);
+      this.logger.info('resultTokens', resultTokens);
 
       result.name = resultTokens[0].name;
       result.symbol = resultTokens[0].symbol;
@@ -925,7 +925,7 @@ export default class Quest extends Service {
       // 获取已经领取的数量
       const sqlQuestsLogsCounts = 'SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;';
       const resultQuestsLogsCounts = await mysqlQuest.query(sqlQuestsLogsCounts, [ result.id ]);
-      console.log('resultQuestsLogsCounts', resultQuestsLogsCounts);
+      this.logger.info('resultQuestsLogsCounts', resultQuestsLogsCounts);
 
       result.received = resultQuestsLogsCounts[0].count;
 
@@ -933,13 +933,13 @@ export default class Quest extends Service {
       if (id) {
         const sqlQuestsLogs = 'SELECT * FROM quests_logs WHERE qid = ? AND uid = ? AND type = ?;';
         const resultQuestsLogs = await mysqlQuest.query(sqlQuestsLogs, [ qid, id, result.type ]);
-        console.log('resultQuestsLogs', resultQuestsLogs);
+        this.logger.info('resultQuestsLogs', resultQuestsLogs);
 
         // 自定义任务是否申请判断
         if (Number(result.type) === 1) {
           const sqlQuestsLogsCustomtask = 'SELECT * FROM quests_logs_customtask WHERE qid = ? AND uid = ?;';
           const resultQuestsLogsCustomtask = await mysqlQuest.query(sqlQuestsLogsCustomtask, [ qid, id ]);
-          console.log('resultQuestsLogsCustomtask', resultQuestsLogsCustomtask);
+          this.logger.info('resultQuestsLogsCustomtask', resultQuestsLogsCustomtask);
 
           if (resultQuestsLogsCustomtask.length) {
             result.apply = true;
@@ -958,7 +958,7 @@ export default class Quest extends Service {
         if (Number(result.type) === 2 && (Number(result.uid) === Number(id))) {
           const sql = 'SELECT `key` FROM quests WHERE id = ?;';
           const resultQuestsKey = await mysqlQuest.query(sql, [ result.id ]);
-          console.log('resultQuestsKey', resultQuestsKey);
+          this.logger.info('resultQuestsKey', resultQuestsKey);
           result.key = resultQuestsKey[0].key;
         }
 
@@ -975,7 +975,7 @@ export default class Quest extends Service {
       if (result.type === 0) {
         // 获取Twitter信息
         const resultTwitterUser = await this.service.twitter.usersLookup(String(result.twitter_id));
-        console.log('resultTwitterUser', resultTwitterUser);
+        this.logger.info('resultTwitterUser', resultTwitterUser);
         result.twitter_name = resultTwitterUser[result.twitter_id].name;
         result.twitter_screen_name = resultTwitterUser[result.twitter_id].screen_name;
         result.twitter_profile_image_url_https = resultTwitterUser[result.twitter_id].profile_image_url_https;
@@ -1011,12 +1011,12 @@ export default class Quest extends Service {
 
       const sql = 'SELECT * FROM quests WHERE id = ? LIMIT 0, 1;';
       const [ resultQuest ] = await mysqlQuest.query(sql, [ qid ]);
-      console.log('resultQuest', resultQuest);
+      this.logger.info('resultQuest', resultQuest);
 
       // 查询某个任务领取记录列表
       const sqlQueststLogs = 'SELECT ql.id, ql.qid, ql.uid, ql.type, ql.create_time, qtl.token_id, qtl.amount FROM quests_logs ql LEFT JOIN quests_transfer_logs qtl ON qtl.qlogid = ql.id WHERE ql.qid = ? AND ql.type = ?;';
       const result = await mysqlQuest.query(sqlQueststLogs, [ qid, resultQuest.type ]);
-      console.log('result', result, qid, resultQuest.type);
+      this.logger.info('result', result, qid, resultQuest.type);
 
       // empty return
       if (!result.length) {
@@ -1036,12 +1036,12 @@ export default class Quest extends Service {
       });
       const resultUsersArray = await mysqlMatataki.query(sqlUsers);
       const resultUsers = transformForOneArray(resultUsersArray);
-      console.log('resultUsers', resultUsers);
+      this.logger.info('resultUsers', resultUsers);
 
       // 同一个token 取第一个即可
       const sqlTokens = `SELECT id, name, symbol, decimals, logo FROM minetokens WHERE id = ${result[0].token_id};`;
       const resultTokens = await mysqlMatataki.query(sqlTokens);
-      console.log('resultTokens', resultTokens);
+      this.logger.info('resultTokens', resultTokens);
 
       result.forEach((i, idx) => {
         // 用户信息
@@ -1058,7 +1058,7 @@ export default class Quest extends Service {
       // 统计count
       const sqlCounts = 'SELECT COUNT(1) AS count FROM quests_logs WHERE qid = ? AND type = ?;';
       const resultCounts = await mysqlQuest.query(sqlCounts, [ qid, resultQuest.type ]);
-      console.log('resultCounts', resultCounts);
+      this.logger.info('resultCounts', resultCounts);
 
       return {
         code: 0,
@@ -1089,7 +1089,7 @@ export default class Quest extends Service {
     try {
       const sql = 'SELECT * FROM quests WHERE id = ? LIMIT 0, 1;';
       const [ resultQuest ] = await mysqlQuest.query(sql, [ qid ]);
-      console.log('resultQuest', resultQuest);
+      this.logger.info('resultQuest', resultQuest);
 
       if (String(resultQuest.type) !== '1') {
         throw new Error('暂时只支持查询自定义任务');
@@ -1102,7 +1102,7 @@ export default class Quest extends Service {
       // 查询某个任务领取记录列表
       const sqlQueststLogsCustomtask = 'SELECT qid, uid, remark, create_time FROM quests_logs_customtask WHERE qid = ?;';
       const result = await mysqlQuest.query(sqlQueststLogsCustomtask, [ qid ]);
-      console.log('result', result);
+      this.logger.info('result', result);
 
       // empty return
       if (!result.length) {
@@ -1122,7 +1122,7 @@ export default class Quest extends Service {
       });
       const resultUsersArray = await mysqlMatataki.query(sqlUsers);
       const resultUsers = transformForOneArray(resultUsersArray);
-      console.log('resultUsers', resultUsers);
+      this.logger.info('resultUsers', resultUsers);
 
       result.forEach((i, idx) => {
         // 用户信息
@@ -1133,7 +1133,7 @@ export default class Quest extends Service {
       // 统计count
       const sqlCounts = 'SELECT COUNT(1) AS count FROM quests_logs_customtask WHERE qid = ?;';
       const resultCounts = await mysqlQuest.query(sqlCounts, [ qid ]);
-      console.log('resultCounts', resultCounts);
+      this.logger.info('resultCounts', resultCounts);
 
       return {
         code: 0,
@@ -1178,7 +1178,7 @@ export default class Quest extends Service {
 
       // 查询任务列表 获取任务 type
       const resultQuest = await connQuest.get('quests', { id: qid });
-      console.log('resultQuest', resultQuest);
+      this.logger.info('resultQuest', resultQuest);
       if (!resultQuest) {
         throw new Error('任务不存在');
       }
@@ -1190,7 +1190,7 @@ export default class Quest extends Service {
 
       // 查询是否领取完了
       const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
-      // console.log('questLogCount', questLogCount);
+      // this.logger.info('questLogCount', questLogCount);
       if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
         throw new Error('已经领取完了');
       }
@@ -1200,22 +1200,22 @@ export default class Quest extends Service {
         // 查询当前用户是否绑定了twitter
         const sqlUser = 'SELECT u.id, ua.uid, ua.account FROM users u LEFT JOIN user_accounts ua ON u.id = ua.uid WHERE u.id = ? AND ua.platform = \'twitter\' LIMIT 0, 1;';
         const resultUser = await mysqlMatataki.query(sqlUser, [ id ]);
-        // console.log('resultUser', resultUser);
+        // this.logger.info('resultUser', resultUser);
 
         // 判断是否绑定Twitter
         if (resultUser.length) {
           // 判断是否关注自己
           if (resultUser[0].account === resultQuest.twitter_id) {
-            console.log('别人发布的任务关注自己 直接领取');
+            this.logger.info('别人发布的任务关注自己 直接领取');
           } else {
             const source_screen_name = resultUser[0].account;
             const target_screen_name = resultQuest.twitter_id;
             const userFriendship = await ctx.service.twitter.friendshipsShow(source_screen_name, target_screen_name);
-            console.log('userFriendship', userFriendship);
+            this.logger.info('userFriendship', userFriendship);
 
             // 判断是否完成任务
             if (userFriendship.relationship.source.following) {
-              console.log('完成任务');
+              this.logger.info('完成任务');
             } else {
               throw new Error('没有达成领取条件');
             }
@@ -1250,12 +1250,12 @@ export default class Quest extends Service {
         type: resultQuest.type,
         create_time: time,
       });
-      console.log('rewardResult', rewardResult);
+      this.logger.info('rewardResult', rewardResult);
 
       // 发送奖励
       // 计算获取奖励
       const processReward = (price: string, people: string) => {
-        // console.log('1111', price, people)
+        // this.logger.info('1111', price, people)
         const BN = BigNumber.clone();
         BN.config({ DECIMAL_PLACES: 3 });
         const single = new BN(new BN(Number(price))).dividedBy(Number(people));
@@ -1313,7 +1313,7 @@ export default class Quest extends Service {
 
       // 查询任务列表 获取任务 type
       const resultQuest = await connQuest.get('quests', { id: qid });
-      console.log('resultQuest', resultQuest);
+      this.logger.info('resultQuest', resultQuest);
       if (!resultQuest) {
         throw new Error('任务不存在');
       }
@@ -1325,7 +1325,7 @@ export default class Quest extends Service {
 
       // 查询是否领取完了
       const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
-      // console.log('questLogCount', questLogCount);
+      // this.logger.info('questLogCount', questLogCount);
       if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
         throw new Error('已经领取完了');
       }
@@ -1362,12 +1362,12 @@ export default class Quest extends Service {
         type: resultQuest.type,
         create_time: time,
       });
-      console.log('rewardResult', rewardResult);
+      this.logger.info('rewardResult', rewardResult);
 
       // 发送奖励
       // 计算获取奖励
       const processReward = (price: string, people: string) => {
-        // console.log('1111', price, people)
+        // this.logger.info('1111', price, people)
         const BN = BigNumber.clone();
         BN.config({ DECIMAL_PLACES: 3 });
         const single = new BN(new BN(Number(price))).dividedBy(Number(people));
@@ -1417,7 +1417,7 @@ export default class Quest extends Service {
     try {
       // 查询任务列表 获取任务 type
       const resultQuest = await connQuest.get('quests', { id: qid });
-      console.log('resultQuest', resultQuest, id);
+      this.logger.info('resultQuest', resultQuest, id);
       if (!resultQuest) {
         throw new Error('任务不存在');
       }
@@ -1450,7 +1450,7 @@ export default class Quest extends Service {
         remark,
         create_time: time,
       });
-      console.log('rewardResult', rewardResult);
+      this.logger.info('rewardResult', rewardResult);
 
       await connQuest.commit();
 
@@ -1465,6 +1465,39 @@ export default class Quest extends Service {
         message: `apply error${e}`,
       };
     }
+  }
+  public async applyAll() {
+    this.logger.info('applyAll', new Date());
+
+    const { ctx } = this;
+    const { id } = ctx.user;
+
+    if (id) {
+      const mysqlQuest = this.app.mysql.get('quest');
+      const sql = `SELECT DISTINCT q.id, q.uid, q.title, q.create_time
+      FROM quests_logs_customtask qlc LEFT JOIN quests q ON qlc.qid = q.id
+      WHERE q.type = 1 AND q.uid = ?`;
+      const resultsApplyAll = await mysqlQuest.query(sql, [ id ]);
+
+      this.logger.info('resultsApplyAll', resultsApplyAll);
+
+      return {
+        code: 0,
+        data: {
+          count: resultsApplyAll.length,
+          list: resultsApplyAll,
+        },
+      };
+    }
+    return {
+      code: 0,
+      data: {
+        count: 0,
+        list: [],
+      },
+      message: '没有申请',
+    };
+
   }
   // 申请同意
   public async applyAgree({ qid, uid }) {
@@ -1491,7 +1524,7 @@ export default class Quest extends Service {
 
       // 查询任务列表 获取任务 type
       const resultQuest = await connQuest.get('quests', { id: qid });
-      console.log('resultQuest', resultQuest, id);
+      this.logger.info('resultQuest', resultQuest, id);
       if (!resultQuest) {
         throw new Error('任务不存在');
       }
@@ -1507,7 +1540,7 @@ export default class Quest extends Service {
 
       // 查询是否领取完了
       const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
-      // console.log('questLogCount', questLogCount);
+      // this.logger.info('questLogCount', questLogCount);
       if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
         throw new Error('已经领取完了');
       }
@@ -1536,12 +1569,12 @@ export default class Quest extends Service {
         type: resultQuest.type,
         create_time: time,
       });
-      console.log('rewardResult', rewardResult);
+      this.logger.info('rewardResult', rewardResult);
 
       // 发送奖励
       // 计算获取奖励
       const processReward = (price: string, people: string) => {
-        // console.log('1111', price, people)
+        // this.logger.info('1111', price, people)
         const BN = BigNumber.clone();
         BN.config({ DECIMAL_PLACES: 3 });
         const single = new BN(new BN(Number(price))).dividedBy(Number(people));
@@ -1595,7 +1628,7 @@ export default class Quest extends Service {
     try {
       // 查询任务列表 获取任务 type
       const resultQuest = await connQuest.get('quests', { id: qid });
-      console.log('resultQuest', resultQuest, id);
+      this.logger.info('resultQuest', resultQuest, id);
       if (!resultQuest) {
         throw new Error('任务不存在');
       }
@@ -1655,7 +1688,7 @@ export default class Quest extends Service {
     try {
       // 查询全部任务
       const resultsAllQuests = await mysqlQuest.query(sqlAllQuests);
-      console.log('resultsAllQuests', resultsAllQuests.length);
+      this.logger.info('resultsAllQuests', resultsAllQuests.length);
 
       // 查询全部任务数量
       const resultsQuests = resultsAllQuests.length;
@@ -1672,23 +1705,23 @@ export default class Quest extends Service {
 
       // 查询Twitter任务数量
       const sqlAllQuestsTwitterCount = handleTokenTypeSql({ sql: sqlAllQuestsCount, token, type: 0, where: false });
-      console.log('sqlAllQuestsTwitterCount', sqlAllQuestsTwitterCount);
+      this.logger.info('sqlAllQuestsTwitterCount', sqlAllQuestsTwitterCount);
 
       const resultsAllQuestsTwitterCount = await mysqlQuest.query(sqlAllQuestsTwitterCount);
       const resultsQuestsTwitter = resultsAllQuestsTwitterCount[0].count;
-      console.log('resultsQuestsTwitter', resultsQuestsTwitter);
+      this.logger.info('resultsQuestsTwitter', resultsQuestsTwitter);
 
       // 查询自定义任务数量
       const sqlAllQuestsCustomtaskCount = handleTokenTypeSql({ sql: sqlAllQuestsCount, token, type: 1, where: false });
       const resultsAllQuestsCustomtaskCount = await mysqlQuest.query(sqlAllQuestsCustomtaskCount);
       const resultsQuestsCustomtask = resultsAllQuestsCustomtaskCount[0].count;
-      console.log('resultsQuestsCustomtask', resultsQuestsCustomtask);
+      this.logger.info('resultsQuestsCustomtask', resultsQuestsCustomtask);
 
       // 查询key任务数量
       const sqlAllQuestsKeyCount = handleTokenTypeSql({ sql: sqlAllQuestsCount, token, type: 2, where: false });
       const resultsAllQuestsKeyCount = await mysqlQuest.query(sqlAllQuestsKeyCount);
       const resultsQuestsKey = resultsAllQuestsKeyCount[0].count;
-      console.log('resultsQuestsKey', resultsQuestsKey);
+      this.logger.info('resultsQuestsKey', resultsQuestsKey);
 
 
       // -----
@@ -1730,12 +1763,12 @@ export default class Quest extends Service {
       const sqlAll = handleTypeAndTokenSql({ sql: sqlAllQuestsCount, type, token, where: false });
       const resultsTypeAllQuestsCount = await mysqlQuest.query(sqlAll);
       const resultsTypeQuests = resultsTypeAllQuestsCount[0].count;
-      // console.log('resultsTypeQuests', resultsTypeQuests);
+      // this.logger.info('resultsTypeQuests', resultsTypeQuests);
 
       // 查询领取记录做计算
       const sqlQLogs = handleTypeAndTokenQuestLogsSql({ sql: sqlQuestsLogs, type, token, where: false });
       const resultsQuestsLogs = await mysqlQuest.query(sqlQLogs);
-      console.log('resultsQuestsLogs', resultsQuestsLogs);
+      this.logger.info('resultsQuestsLogs', resultsQuestsLogs);
 
       // [ {qid: x}, {} ] ===> { x: count, y: count }
       const questsLogs = {};
@@ -1745,7 +1778,7 @@ export default class Quest extends Service {
         }
         questsLogs[i.qid] = questsLogs[i.qid] += 1;
       });
-      console.log('questsLogs', questsLogs);
+      this.logger.info('questsLogs', questsLogs);
 
       // 计算待完成的 比对总量
       // 查询领取完毕的 用总量 - 完成量
@@ -1756,14 +1789,14 @@ export default class Quest extends Service {
         }
       });
 
-      console.log('completed', completed);
+      this.logger.info('completed', completed);
 
       // 查询已完成
       const receiveFn = async id => {
         const _sql = 'SELECT COUNT(1) AS count FROM quests_logs ql LEFT JOIN quests q ON ql.qid = q.id WHERE ql.uid = ?';
         const _sqlResult = handleTypeAndTokenQuestLogsSql({ sql: _sql, type, token, where: true });
         const resultsQuestsLogs = await mysqlQuest.query(_sqlResult, [ id ]);
-        console.log('resultsQuestsLogs', resultsQuestsLogs);
+        this.logger.info('resultsQuestsLogs', resultsQuestsLogs);
         return resultsQuestsLogs[0].count;
       };
 
@@ -1772,7 +1805,7 @@ export default class Quest extends Service {
         const _sql = 'SELECT COUNT(1) AS count FROM quests WHERE uid = ?';
         const _sqlResult = handleTypeAndTokenSql({ sql: _sql, type, token, where: true });
         const resultsQuestsCount = await mysqlQuest.query(_sqlResult, [ id ]);
-        console.log('resultsQuestsCount', resultsQuestsCount);
+        this.logger.info('resultsQuestsCount', resultsQuestsCount);
         return resultsQuestsCount[0].count;
       };
 
@@ -1867,11 +1900,11 @@ export default class Quest extends Service {
           id: resultUserStats.data.data.id,
           token,
         };
-        // console.log('resultUserStats', resultUserStats);
+        // this.logger.info('resultUserStats', resultUserStats);
       } else {
         throw new Error('获取托管账户信息失败');
       }
-      // console.log('userQuest', ctx.userQuest);
+      // this.logger.info('userQuest', ctx.userQuest);
     } catch (e) {
       this.logger.error('getHostingInfo error: ', e);
       ctx.userQuest = {};
@@ -1888,7 +1921,7 @@ export default class Quest extends Service {
     try {
       // 获取所有需要处理的列表
       const resultTransfer = await connQuest.query('SELECT * FROM quests_transfer_logs WHERE hash = \'\' ORDER BY create_time ASC LIMIT 0, 1;');
-      console.log('resultTransfer', this.ctx.userQuest);
+      this.logger.info('resultTransfer', this.ctx.userQuest);
 
       if (!resultTransfer.length) {
         await connQuest.commit();
@@ -1917,7 +1950,7 @@ export default class Quest extends Service {
         },
       });
 
-      console.log('resultUserTransfer', resultUserTransfer);
+      this.logger.info('resultUserTransfer', resultUserTransfer);
       // 插入 hash 更新时间
       if (resultUserTransfer.status === 200 && resultUserTransfer.data.code === 0) {
         const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
@@ -1931,7 +1964,7 @@ export default class Quest extends Service {
         const updateSuccess = result.affectedRows === 1;
 
         if (updateSuccess) {
-          console.log('发布奖励成功');
+          this.logger.info('发布奖励成功');
           await connQuest.commit();
         } else {
           throw new Error('发布奖励失败');
@@ -1959,7 +1992,7 @@ export default class Quest extends Service {
       WHERE qtl.\`hash\` = '' ORDER BY qtl.create_time ASC;`;
       this.logger.info('pendingRewards _sql', _sql);
       const resultRewards = await mysqlQuest.query(_sql);
-      // console.log(resultRewards);
+      // this.logger.info(resultRewards);
 
       // 获取用户信息
       let sqlUser = '';
@@ -1968,7 +2001,7 @@ export default class Quest extends Service {
       });
       const resultsMatatakiUser = await mysqlMatataki.query(sqlUser);
       const resultsMatatakiUserFlat = transformForOneArray(resultsMatatakiUser);
-      // console.log('resultsMatatakiUserFlat', resultsMatatakiUserFlat);
+      // this.logger.info('resultsMatatakiUserFlat', resultsMatatakiUserFlat);
       resultRewards.forEach((i: any, idx: number) => {
         i.username = resultsMatatakiUserFlat[idx].nickname || resultsMatatakiUserFlat[idx].username || '';
         i.avatar = resultsMatatakiUserFlat[idx].avatar || '';
@@ -1980,7 +2013,7 @@ export default class Quest extends Service {
       });
       const resultsMatatakiToken = await mysqlMatataki.query(sqlToken);
       const resultsMatatakiTokenFlat = transformForOneArray(resultsMatatakiToken);
-      // console.log('resultsMatatakiTokenFlat', resultsMatatakiTokenFlat);
+      // this.logger.info('resultsMatatakiTokenFlat', resultsMatatakiTokenFlat);
       resultRewards.forEach((i: any, idx: number) => {
         i.name = resultsMatatakiTokenFlat[idx].name || '';
         i.symbol = resultsMatatakiTokenFlat[idx].symbol || '';

@@ -42,6 +42,9 @@ export default (app: Application) => {
   router.post('/apply/agree', passport.authorize, controller.quest.applyAgree);
   // 申请拒绝
   router.delete('/apply/reject', passport.authorize, controller.quest.applyReject);
+  // 全部任务的申请
+  router.get('/apply/all', passport.verify, controller.quest.applyAll);
+
 
   // 搜索twitter用户
   router.get('/users/search/twitter', controller.twitter.usersSearch);
