@@ -798,7 +798,10 @@ export default class Quest extends Service {
 
         const requestFriendsList = async () => {
           // 查询关注过的人的信息
-          resultFriendsList = await this.service.twitter.friendsList(screen_name);
+          const resFriendsList: any = await this.service.twitter.friendsList(screen_name);
+          if (resFriendsList.code === 0) {
+            resultFriendsList = resFriendsList.data;
+          }
           this.logger.info('resultFriendsList', resultFriendsList);
           // [ undefined ]
           if (!resultFriendsList.length && !resultFriendsList[0]) {
@@ -810,8 +813,10 @@ export default class Quest extends Service {
               resultFriendsList = oldValue.friendsList;
             } else {
               // 4: 没有内存记录请求失败换另一个代替 最后都失败使用默认状态
-              await relationship(screen_name, results); // 传递 results 引用
-              return;
+              this.logger.info('relationship results', results);
+              if (results.length) {
+                await relationship(screen_name, results); // 传递 results 引用
+              }
             }
           } else {
             // 写入Map

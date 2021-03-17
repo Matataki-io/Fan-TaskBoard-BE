@@ -277,7 +277,7 @@ export default class TwitterService extends Service {
     }
   }
   // 获取用户关注 list
-  public async friendsList(screen_name: string, count = 200): Promise<any[]> {
+  public async friendsList(screen_name: string, count = 200): Promise<Object> {
     const { ctx } = this;
     const cb = new Codebird();
     cb.setUseProxy(true);
@@ -334,11 +334,16 @@ export default class TwitterService extends Service {
 
       // 合并数据
       const resultTotal = result.map(i => i.users);
-      return resultTotal.flat(1);
+      return {
+        code: 0,
+        data: resultTotal.flat(1),
+      };
     } catch (error) {
       ctx.logger.error('friendsList error', error);
-      const result: any = [];
-      return result;
+      return {
+        code: -1,
+        data: [],
+      };
     }
   }
   public async test(): Promise<any> {
