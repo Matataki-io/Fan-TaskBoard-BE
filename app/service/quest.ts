@@ -814,8 +814,9 @@ export default class Quest extends Service {
             } else {
               // 4: 没有内存记录请求失败换另一个代替 最后都失败使用默认状态
               this.logger.info('relationship results', results);
-              if (results.length) {
+              if (results.length === -1) { // 故意的
                 await relationship(screen_name, results); // 传递 results 引用
+                // 暂时取消 twitter api error 之后 多个方法 耗时太长
               }
             }
           } else {
