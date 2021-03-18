@@ -1,57 +1,63 @@
 import { Service } from 'egg';
-import { friendshipsProps, followersIdsProps, friendsIdsProps } from '../../typings/index';
+// import { followersIdsProps, friendsIdsProps } from '../../typings/index';
 // import * as Codebird from '../utils/codebird';
 import * as Codebird from 'codebird';
+import * as Twit from 'twit';
+// import { isEmpty } from 'lodash';
 
 interface usersSearchProps {
   q: string,
   count: string | number
 }
+
+interface TwitterState {
+  code: number
+  data?: any
+  message?: string
+}
+
 /**
  * Twitter Service
  */
 export default class TwitterService extends Service {
 
   // 搜索twitter用户
-  public async usersSearch({ q, count }: usersSearchProps) {
-    const { ctx } = this;
-    const cb = new Codebird();
-    cb.setUseProxy(true);
-    cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
-    cb.setToken(this.config.twitter.access_token_key, this.config.twitter.access_token_secret);
+  public async usersSearch({ q, count }: usersSearchProps): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
 
     try {
-      const result: [] = await new Promise((resolve: any, reject: any) => {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
         const params = { q, count };
-        return cb.__call(
-          'users_search',
-          params,
-          (reply, _: any, err) => {
 
-            if (reply.errors && reply.errors.length) {
-              reject(reply.errors[0].message);
-            }
+        T.get('users/search', params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
 
-            if (err) {
-              reject(err);
-            }
-            resolve(reply);
-          },
-        );
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
       });
 
-      const list = result.map((i: any) => ({
-        id: i.id,
-        id_str: i.id_str,
-        name: i.name,
-        screen_name: i.screen_name,
-        profile_image_url_https: i.profile_image_url_https,
-      }));
-      return {
-        code: 0,
-        message: 'success',
-        data: list,
-      };
+      return result;
     } catch (error) {
       ctx.logger.error('usersSearch error', error);
       return {
@@ -61,99 +67,102 @@ export default class TwitterService extends Service {
     }
   }
   // 批量搜素用户
-  public async usersLookup(screen_name: string) {
-    const { ctx } = this;
-    const cb = new Codebird();
-    cb.setUseProxy(true);
-    cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
+  public async usersLookup(screen_name: string): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
     try {
-      const result: [] = await new Promise((resolve: any, reject: any) => {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
         // 'XiaoTianIsMe,XiaoTianIsMe,island205,XiaoTianIsMe'
         const params = { screen_name };
-        return cb.__call(
-          'users_lookup',
-          params,
-          (reply, _: any, err) => {
-            // console.log('respo', reply);
-            // console.log('xrate', xrate);
+        T.get('users/lookup', params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
 
-            if (reply.errors && reply.errors.length) {
-              reject(reply.errors[0].message);
-            }
-
-            if (reply && Number(reply.httpstatus) !== 200) {
-              reject(JSON.stringify(reply));
-            }
-
-            if (err) {
-              reject(err);
-            }
-            resolve(reply);
-          },
-        );
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
       });
-
-      // 因为返回的搜索结果会去重 所以处理一下数据格式 screen_name: {}
-      const list: {} = {};
-      // console.log('result', result);
-      result.forEach((i: any) => {
-        if (!list[i.screen_name]) {
-          list[i.screen_name] = {};
-        }
-        list[i.screen_name] = {
-          name: i.name,
-          screen_name: i.screen_name,
-          profile_image_url_https: i.profile_image_url_https,
-        };
-      });
-
-      return list;
+      return result;
     } catch (error) {
       ctx.logger.error('usersLookup error', error);
-      return {};
+      return {
+        code: -1,
+        message: error.toString(),
+      };
     }
   }
   // 批量搜素用户 ids
-  public async usersLookupIds(user_id: string): Promise<any> {
-    const { ctx } = this;
-    const cb = new Codebird();
-    cb.setUseProxy(true);
-    cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
+  public async usersLookupIds(user_id: string): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
     try {
-      const result: [] = await new Promise((resolve: any, reject: any) => {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
         const params = { user_id };
-        return cb.__call(
-          'users_lookup',
-          params,
-          (reply, _: any, err) => {
-            // console.log('respo', reply);
-            // console.log('xrate', _);
+        T.get('users/lookup', params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
 
-            if (reply.errors && reply.errors.length) {
-              reject(reply.errors[0].message);
-            }
-
-            if (err) {
-              reject(err);
-            }
-            resolve(reply);
-          },
-        );
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
       });
 
-      // console.log('result', result);
       return result;
     } catch (error) {
       ctx.logger.error('usersLookupIds error', error);
-      return [];
+      return {
+        code: -1,
+        message: error.toString(),
+      };
     }
   }
   // 获取twitter用户 A 和 B 的关注状态
-  public async friendshipsShow(source_screen_name: string, target_screen_name: string): Promise<friendshipsProps> {
-    const { ctx } = this;
-    const cb = new Codebird();
-    cb.setUseProxy(true);
-    cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
+  public async friendshipsShow(source_screen_name: string, target_screen_name: string): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
 
     try {
       // 不能为空
@@ -161,43 +170,52 @@ export default class TwitterService extends Service {
         throw new Error('source_screen_name or target_screen_name not empty');
       }
 
-      const result: friendshipsProps = await new Promise((resolve: any, reject: any) => {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
         const params = {
           source_screen_name,
           target_screen_name,
         };
-        return cb.__call(
-          'friendships_show',
-          params,
-          (reply, _: any, err) => {
-            // console.log('reply', reply, err);
-            if (err) {
-              reject(err);
-            }
-            if (reply.errors && reply.errors.length) {
-              reject(reply.errors[0].message);
-            }
-            if (reply && Number(reply.httpstatus) !== 200) {
-              reject(JSON.stringify(reply));
-            }
 
-            resolve(reply);
-          },
-        );
+        T.get('friendships/show', params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
+
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
       });
       return result;
     } catch (error) {
       ctx.logger.error('friendshipsShow error', error);
-      const result: any = {};
-      return result;
+      return {
+        code: -1,
+        message: error.toString(),
+      };
     }
   }
   // 获取关注用户ids
-  public async followersIds(screen_name: string, count = 5000): Promise<followersIdsProps> {
-    const { ctx } = this;
-    const cb = new Codebird();
-    cb.setUseProxy(true);
-    cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
+  // TODO: 如果使用该接口需要判断下一页
+  public async followersIds(screen_name: string, count = 5000): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
 
     try {
       // 不能为空
@@ -205,41 +223,53 @@ export default class TwitterService extends Service {
         throw new Error('screen_name not empty');
       }
 
-      const result: followersIdsProps = await new Promise((resolve: any, reject: any) => {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
         const params = {
           screen_name,
           count,
         };
-        return cb.__call(
-          'followers/ids',
-          params,
-          (reply, _: any, err) => {
-            // console.log('reply', reply, err);
 
-            if (reply.errors && reply.errors.length) {
-              reject(reply.errors[0].message);
-            }
+        T.get('followers/ids', params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
 
-            if (err) {
-              reject(err);
-            }
-            resolve(reply);
-          },
-        );
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
+
       });
       return result;
     } catch (error) {
       ctx.logger.error('followersIds error', error);
-      const result: any = {};
-      return result;
+      return {
+        code: -1,
+        message: error.toString(),
+      };
     }
   }
   // 获取用户关注ids
-  public async friendsIds(screen_name: string, count = 5000): Promise<friendsIdsProps> {
-    const { ctx } = this;
-    const cb = new Codebird();
-    cb.setUseProxy(true);
-    cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
+  // TODO: 如果使用该接口需要判断下一页
+  public async friendsIds(screen_name: string, count = 5000): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
 
     try {
       // 不能为空
@@ -247,41 +277,52 @@ export default class TwitterService extends Service {
         throw new Error('screen_name not empty');
       }
 
-      const result: followersIdsProps = await new Promise((resolve: any, reject: any) => {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
         const params = {
           screen_name,
           count,
         };
-        return cb.__call(
-          'friends/ids',
-          params,
-          (reply, _: any, err) => {
-            // console.log('reply', reply, err);
 
-            if (reply.errors && reply.errors.length) {
-              reject(reply.errors[0].message);
-            }
+        T.get('friends/ids', params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
 
-            if (err) {
-              reject(err);
-            }
-            resolve(reply);
-          },
-        );
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
+
       });
       return result;
     } catch (error) {
       ctx.logger.error('friendsIds error', error);
-      const result: any = {};
-      return result;
+      return {
+        code: -1,
+        message: error.toString(),
+      };
     }
   }
   // 获取用户关注 list
-  public async friendsList(screen_name: string, count = 200): Promise<Object> {
-    const { ctx } = this;
-    const cb = new Codebird();
-    cb.setUseProxy(true);
-    cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
+  public async friendsList(screen_name: string, count = 200): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
 
     const params = {
       screen_name,
@@ -294,50 +335,45 @@ export default class TwitterService extends Service {
         throw new Error('screen_name not empty');
       }
 
-      const result: any = await new Promise((resolve: any, reject: any) => {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
         const friendsListResult: any[] = [];
         const friendsList = params => {
-          cb.__call(
-            'friends_list',
-            params,
-            (reply, _:any, err) => {
-              // console.log('respo', JSON.stringify(reply));
-              // console.log('xrate', xrate);
-              if (err) {
-                reject(err);
-              }
 
-              if (reply.errors && reply.errors.length) {
-                reject(reply.errors[0].message);
-              }
-              if (reply && Number(reply.httpstatus) !== 200) {
-                reject(JSON.stringify(reply));
-              }
+          T.get('friends/list', params, function(err, data, response) {
+            logger.info('data', data);
+            logger.info('response', response);
+            if (err) {
+              logger.info('err', err);
+              const res = {
+                code: -1,
+                message: err,
+              };
 
-              friendsListResult.push(reply);
+              reject(res);
+            }
 
-              const nextCursor = reply.next_cursor_str;
-              if (nextCursor > 0) {
-                // console.log('nextCursor', nextCursor);
-                params.cursor = nextCursor;
-                friendsList(params);
-              } else {
-                resolve(friendsListResult);
-              }
-            },
-          );
+            friendsListResult.push(data);
+
+            const nextCursor = data.next_cursor_str;
+            if (nextCursor > 0) {
+              logger.info('nextCursor', nextCursor);
+              params.cursor = nextCursor;
+              friendsList(params);
+            } else {
+              const res = {
+                code: 0,
+                data: friendsListResult,
+              };
+              resolve(res);
+            }
+          });
         };
         friendsList(params);
       });
 
-      // console.log('friendsList result', result);
+      logger.info('friendsList result', result);
 
-      // 合并数据
-      const resultTotal = result.map(i => i.users);
-      return {
-        code: 0,
-        data: resultTotal.flat(1),
-      };
+      return result;
     } catch (error) {
       ctx.logger.error('friendsList error', error);
       return {
@@ -353,62 +389,82 @@ export default class TwitterService extends Service {
     cb.setConsumerKey(this.config.twitter.consumer_key, this.config.twitter.consumer_secret);
     // cb.setToken('1218028959109210113-1kTzez8ifRL8RmbMQqyQOR4QGtiTb8', '2riDqqfjq3XjiR4JL8avjF7ONWJfAmoT1ybbAmA5Aay1r');
 
-    // const params = {
-    //   screen_name: 'XiaoTianIsMe',
-    //   count: 20,
-    //   cursor: -1,
-    // };
-
-    function tests() {
-      throw new Error('111');
-    }
+    const params = {
+      id: '1371838630344409093',
+      count: 5,
+    };
 
     try {
-    //   const result: any = await new Promise((resolve: any, reject: any) => {
+      const result: any = await new Promise((resolve: any, reject: any) => {
 
-      //     const friendsListResult: any[] = [];
-      //     const friendsList = params => {
-      //       cb.__call(
-      //         'friends_list',
-      //         params,
-      //         (reply, _:any, err) => {
-      //           // console.log('respo', JSON.stringify(reply));
-      //           // console.log('xrate', xrate);
-      //           if (err) {
-      //             reject(err);
-      //           }
+        const friendsList = params => {
+          cb.__call(
+            'statuses/retweets/:id',
+            params,
+            (reply, _:any, err) => {
+              // console.log('respo', JSON.stringify(reply));
+              // console.log('xrate', xrate);
+              if (err) {
+                const res = {
+                  code: -1,
+                  message: err,
+                };
+                reject(res);
+              }
 
-      //           friendsListResult.push(reply.users.map(i => i.screen_name));
+              resolve({
+                code: 0,
+                data: reply,
+              });
+            },
+          );
+        };
 
-      //           const nextCursor = reply.next_cursor_str;
-      //           if (nextCursor > 0) {
-      //             console.log(111, nextCursor);
-      //             params.cursor = nextCursor;
-      //             friendsList(params);
-      //           } else {
-      //             resolve(friendsListResult);
-      //           }
-      //         },
-      //       );
-      //     };
+        friendsList(params);
+      });
 
-      //     friendsList(params);
-      //   });
+      console.log('result', result);
+      if (result.code === 0) {
+        return result;
+      }
+      console.log('result error', result.toString());
+      return [];
 
-      // console.log('result', result.ids.join(','));
-      // const usersInfo = await this.usersLookupIds(result.ids.join(','));
-
-      // return usersInfo.map(i => ({
-      //   screen_name: i.screen_name,
-      //   id: i.id,
-      // }));
-
-      const result = tests();
-      return result;
     } catch (error) {
       ctx.logger.error('test error', error);
-      const result: any = {};
+      const result: any = [];
       return result;
     }
   }
+
+  public async test1(): Promise<any> {
+    // const list: any[] = [];
+    // list.push(this.friendshipsShow('XiaoTianIsMe', 'shellteo'));
+    // list.push(this.friendshipsShow('XiaoTianIsMe', 'shellteo'));
+    // const result = await Promise.all(list);
+
+    // // 处理关系结果格式 ===> [key: target_screen_name]: {}
+    // const relationshipList = {};
+    // result.forEach((i: any) => {
+    //   this.logger.info('friendshipsShow result i ', i);
+    //   // 处理 empty object
+    //   const next = i.code === 0 ? i.data : { };
+    //   this.logger.info('friendshipsShow result next ', next);
+
+    //   if (!isEmpty(next)) {
+    //     const screen_name: any = next.relationship.target.screen_name;
+    //     if (!relationshipList[screen_name]) {
+    //       relationshipList[screen_name] = {};
+    //     }
+    //     relationshipList[screen_name] = next;
+    //   }
+    // });
+    // this.logger.info('relationshipList', relationshipList);
+
+    // return relationshipList;
+
+    return this.friendsList('XiaoTianIsMe');
+
+  }
+
 }

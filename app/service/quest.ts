@@ -1,6 +1,6 @@
 import { Service } from 'egg';
 import * as moment from 'moment';
-import { questInterface, questKeyInterface, friendshipsProps, UpdateQuestProps } from '../../typings/index';
+import { questInterface, questKeyInterface, UpdateQuestProps } from '../../typings/index';
 import { isEmpty } from 'lodash';
 import BigNumber from 'bignumber.js';
 import { transformForOneArray } from '../utils/index';
@@ -655,7 +655,22 @@ export default class Quest extends Service {
       const screenNameArrs = screenNameArr.map((i: any) => i.twitter_id);
       const screenNameStr = screenNameArrs.join(',');
 
-      const usersTwitter = await this.service.twitter.usersLookup(screenNameStr);
+      const usersTwitterResList: {} = {};
+      const usersTwitterRes = await this.service.twitter.usersLookup(screenNameStr);
+      if (usersTwitterRes.code === 0) {
+        // 因为返回的搜索结果会去重 所以处理一下数据格式 screen_name: {}
+        usersTwitterRes.data.forEach((i: any) => {
+          if (!usersTwitterResList[i.screen_name]) {
+            usersTwitterResList[i.screen_name] = {};
+          }
+          usersTwitterResList[i.screen_name] = {
+            name: i.name,
+            screen_name: i.screen_name,
+            profile_image_url_https: i.profile_image_url_https,
+          };
+        });
+      }
+      const usersTwitter = Object.assign({}, usersTwitterResList);
       // this.logger.info('usersTwitter', usersTwitter);
       results.forEach((i: any) => {
         if (Number(i.type) === 0 && usersTwitter[i.twitter_id]) { // Twitter 任务 查询用户信息
@@ -756,20 +771,23 @@ export default class Quest extends Service {
         });
 
         // 开始查询twitter关系结果
-        const result: friendshipsProps[] = await Promise.all(promiseArr);
+        const result = await Promise.all(promiseArr);
         this.logger.info('result', result);
 
         // 处理关系结果格式 ===> [key: target_screen_name]: {}
         const relationshipList = {};
-        result.forEach((i: friendshipsProps) => {
-          // this.logger.info('i ', i);
+        result.forEach((i: any) => {
+          this.logger.info('friendshipsShow result i ', i);
           // 处理 empty object
-          if (!isEmpty(i)) {
-            const screen_name: any = i.relationship.target.screen_name;
+          const next = i.code === 0 ? i.data : { };
+          this.logger.info('friendshipsShow result next ', next);
+
+          if (!isEmpty(next)) {
+            const screen_name: any = next.relationship.target.screen_name;
             if (!relationshipList[screen_name]) {
               relationshipList[screen_name] = {};
             }
-            relationshipList[screen_name] = i;
+            relationshipList[screen_name] = next;
           }
         });
         this.logger.info('relationshipList', relationshipList);
@@ -800,7 +818,9 @@ export default class Quest extends Service {
           // 查询关注过的人的信息
           const resFriendsList: any = await this.service.twitter.friendsList(screen_name);
           if (resFriendsList.code === 0) {
-            resultFriendsList = resFriendsList.data;
+            const list = resFriendsList.data.map(i => i.users);
+            this.logger.info('resFriendsList map after', list);
+            resultFriendsList = list.flat(1);
           }
           this.logger.info('resultFriendsList', resultFriendsList);
           // [ undefined ]
@@ -873,7 +893,6 @@ export default class Quest extends Service {
         // 查询Twitter关系
         await handleTwitterFollowers(currentUserTwitter[0].account, results);
       }
-
 
       return {
         count: countResults[0].count,
@@ -980,8 +999,26 @@ export default class Quest extends Service {
       // twitter 关注任务
       if (result.type === 0) {
         // 获取Twitter信息
-        const resultTwitterUser = await this.service.twitter.usersLookup(String(result.twitter_id));
+        const resultTwitterUserResList = {};
+        const resultTwitterUserRes = await this.service.twitter.usersLookup(String(result.twitter_id));
+
+        if (resultTwitterUserRes.code === 0) {
+          // 因为返回的搜索结果会去重 所以处理一下数据格式 screen_name: {}
+          resultTwitterUserRes.data.forEach((i: any) => {
+            if (!resultTwitterUserResList[i.screen_name]) {
+              resultTwitterUserResList[i.screen_name] = {};
+            }
+            resultTwitterUserResList[i.screen_name] = {
+              name: i.name,
+              screen_name: i.screen_name,
+              profile_image_url_https: i.profile_image_url_https,
+            };
+          });
+        }
+
+        const resultTwitterUser = Object.assign({}, resultTwitterUserResList);
         this.logger.info('resultTwitterUser', resultTwitterUser);
+
         result.twitter_name = resultTwitterUser[result.twitter_id].name;
         result.twitter_screen_name = resultTwitterUser[result.twitter_id].screen_name;
         result.twitter_profile_image_url_https = resultTwitterUser[result.twitter_id].profile_image_url_https;
@@ -1216,7 +1253,11 @@ export default class Quest extends Service {
           } else {
             const source_screen_name = resultUser[0].account;
             const target_screen_name = resultQuest.twitter_id;
-            const userFriendship = await ctx.service.twitter.friendshipsShow(source_screen_name, target_screen_name);
+            let userFriendship: any = {};
+            const userFriendshipRes = await ctx.service.twitter.friendshipsShow(source_screen_name, target_screen_name);
+            if (userFriendshipRes.code === 0) {
+              userFriendship = userFriendshipRes.data;
+            }
             this.logger.info('userFriendship', userFriendship);
 
             // 判断是否完成任务

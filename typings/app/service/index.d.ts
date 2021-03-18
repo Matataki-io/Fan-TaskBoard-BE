@@ -12,6 +12,7 @@ import ExportNft from '../../../app/service/nft';
 import ExportQuest from '../../../app/service/quest';
 import ExportToken from '../../../app/service/token';
 import ExportTwitter from '../../../app/service/twitter';
+import ExportTwitterBackup from '../../../app/service/twitterBackup';
 
 declare module 'egg' {
   interface IService {
@@ -21,5 +22,6 @@ declare module 'egg' {
     quest: AutoInstanceType<typeof ExportQuest>;
     token: AutoInstanceType<typeof ExportToken>;
     twitter: AutoInstanceType<typeof ExportTwitter>;
+    twitterBackup: AutoInstanceType<typeof ExportTwitterBackup>;
   }
 }
