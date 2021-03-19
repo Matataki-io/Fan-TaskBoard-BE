@@ -1,5 +1,6 @@
 import { Controller } from 'egg';
 import { questInterface } from '../../typings/index';
+import { isEmpty } from 'lodash';
 
 interface paginationInterface {
   page?: number,
@@ -17,7 +18,7 @@ interface getQuestProps extends paginationInterface {
 export default class QuestController extends Controller {
   public async CreateQuest() {
     const { ctx } = this;
-    const { type, title = '', content = '', key = '', twitter_id, token_id, reward_people, reward_price }: questInterface = ctx.request.body;
+    const { type, title = '', content = '', key = '', twitter_id, twitter_status, twitter_status_url, token_id, reward_people, reward_price }: questInterface = ctx.request.body;
     if (Number(type) === 0) {
       // twitter
       const result = await ctx.service.quest.CreateQuestTwitter({ type, twitter_id, token_id, reward_people, reward_price });
@@ -37,6 +38,14 @@ export default class QuestController extends Controller {
     } else if (Number(type) === 2) {
       // 解谜任务
       const result = await ctx.service.quest.CreateQuestKey({ type, title, content, key, token_id, reward_people, reward_price });
+      const resultFormat = {
+        code: 0,
+        message: 'success',
+      };
+      ctx.body = Object.assign(resultFormat, result);
+    } else if (Number(type) === 3) {
+      // 转推任务
+      const result = await ctx.service.quest.CreateQuestRetweet({ type, twitter_status, twitter_status_url, token_id, reward_people, reward_price });
       const resultFormat = {
         code: 0,
         message: 'success',
@@ -120,6 +129,16 @@ export default class QuestController extends Controller {
     };
     ctx.body = Object.assign(resultFormat, result);
   }
+  public async receiveRetweet() {
+    const { ctx } = this;
+    const { qid } = ctx.request.body;
+    const result = await ctx.service.quest.receiveRetweet({ qid });
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+  }
   public async apply() {
     const { ctx } = this;
     const { qid, remark } = ctx.request.body;
@@ -193,5 +212,38 @@ export default class QuestController extends Controller {
     } else {
       ctx.body = result;
     }
+  }
+  public async retweetStatus() {
+    const { ctx } = this;
+    const { screen_name, tweetId } = ctx.request.query;
+    const result = await ctx.service.twitter.statusesUserTimeline({ screen_name });
+
+    console.log('screen_name', screen_name, tweetId);
+
+    if (result.code === 0) {
+
+      const list = result.data.filter(i => (!isEmpty(i.retweeted_status) && i.text.includes('RT')));
+      // console.log('list', list);
+
+      const res = list.find(i => i.retweeted_status.id_str === tweetId);
+
+      if (isEmpty(res)) {
+        console.log('没有转推');
+      } else {
+        console.log('已经转推了');
+      }
+
+      ctx.body = {
+        code: 0,
+        message: 'success',
+        data: list,
+      };
+    } else {
+      ctx.body = result;
+    }
+  }
+  public async statusesShowId() {
+    const { id } = this.ctx.request.query;
+    this.ctx.body = await this.service.twitter.statusesShowId({ id: String(id) });
   }
 }

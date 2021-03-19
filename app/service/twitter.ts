@@ -21,6 +21,49 @@ interface TwitterState {
  */
 export default class TwitterService extends Service {
 
+  private async TGet({ url, params }): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
+
+    try {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
+        T.get(url, params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
+
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
+      });
+
+      return result;
+    } catch (error) {
+      ctx.logger.error('twitterFn error', url, error);
+      return {
+        code: -1,
+        message: error.toString(),
+      };
+    }
+  }
+
   // 搜索twitter用户
   public async usersSearch({ q, count }: usersSearchProps): Promise<TwitterState> {
     const { ctx, app, logger } = this;
@@ -382,6 +425,153 @@ export default class TwitterService extends Service {
       };
     }
   }
+  // GET statuses/retweets/:id
+  // Returns a collection of the 100 most recent retweets of the Tweet specified by the id parameter.
+  public async statusesRetweetsId({ id }): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
+
+    try {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
+        const params = { id, count: 100 };
+
+        T.get('statuses/retweets/:id', params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
+
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
+      });
+
+      return result;
+    } catch (error) {
+      ctx.logger.error('statusesRetweetsId error', error);
+      return {
+        code: -1,
+        message: error.toString(),
+      };
+    }
+  }
+  // GET statuses/retweeters/ids
+  // Returns a collection of up to 100 user IDs belonging to users who have retweeted the Tweet specified by the id parameter.
+  // 只会返回部分转推用户 官网自己的接口也只返回部分数据 不知道为什么
+  public async statusesRetweetsIds({ id }): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
+
+    try {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
+        const params = { id };
+
+        T.get('statuses/retweeters/ids', params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
+
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
+      });
+
+      return result;
+    } catch (error) {
+      ctx.logger.error('statusesRetweetsId error', error);
+      return {
+        code: -1,
+        message: error.toString(),
+      };
+    }
+  }
+  // /2/users/:id/tweets
+  public async usersIdTweets({ id }): Promise<TwitterState> {
+    const { ctx, app, logger } = this;
+    const T = new Twit({
+      consumer_key: this.config.twitter.consumer_key,
+      consumer_secret: this.config.twitter.consumer_secret,
+      access_token: this.config.twitter.access_token_key,
+      access_token_secret: this.config.twitter.access_token_secret,
+      timeout_ms: 30 * 1000, // optional HTTP request timeout to apply to all requests.
+      strictSSL: app.config.env === 'prod', // optional - requires SSL certificates to be valid.
+    });
+
+    try {
+      const result: TwitterState = await new Promise((resolve: any, reject: any) => {
+        const params = { id };
+
+        T.get('users/:id/tweets', params, function(err, data, response) {
+          logger.info('data', data);
+          logger.info('response', response);
+          if (err) {
+            logger.info('err', err);
+            const res = {
+              code: -1,
+              message: err,
+            };
+            reject(res);
+          }
+
+          const resolveRes = {
+            code: 0,
+            data,
+          };
+          resolve(resolveRes);
+        });
+      });
+
+      return result;
+    } catch (error) {
+      ctx.logger.error('usersIdTweets error', error);
+      return {
+        code: -1,
+        message: error.toString(),
+      };
+    }
+  }
+
+  public async statusesUserTimeline({ screen_name, count = 200 }): Promise<TwitterState> {
+    return await this.TGet({ url: 'statuses/user_timeline', params: { screen_name, count } });
+  }
+  // Returns a single Tweet, specified by the id parameter. The Tweet's author will also be embedded within the Tweet.
+  public async statusesShowId({ id }): Promise<TwitterState> {
+    return await this.TGet({ url: 'statuses/show/:id', params: { id } });
+  }
+
   public async test(): Promise<any> {
     const { ctx } = this;
     const cb = new Codebird();
@@ -463,7 +653,11 @@ export default class TwitterService extends Service {
 
     // return relationshipList;
 
-    return this.friendsList('XiaoTianIsMe');
+    // return this.usersIdTweets({ id: '718672387714064384' });
+
+    // return this.TGet({ url: 'statuses/user_timeline', params: { screen_name: 'XiaoTianIsMe', count: 200 } });
+
+    return this.statusesShowId({ id: '1371838630344409093' });
 
   }
 

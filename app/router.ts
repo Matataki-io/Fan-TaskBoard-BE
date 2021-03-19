@@ -45,6 +45,11 @@ export default (app: Application) => {
   // 全部任务的申请
   router.get('/apply/all', passport.verify, controller.quest.applyAll);
 
+  // 转推
+  // 验证 推 是否存在
+  router.get('/statuses/showId', passport.authorize, controller.quest.statusesShowId);
+  // 领取奖励 转推
+  router.post('/receive/retweet', passport.authorize, controller.quest.receiveRetweet);
 
   // 搜索twitter用户
   router.get('/users/search/twitter', controller.twitter.usersSearch);
@@ -66,6 +71,7 @@ export default (app: Application) => {
 
   // test
   router.get('/test', controller.twitter.test);
+  router.get('/testRetweet', controller.quest.retweetStatus);
   router.get('/testdb', controller.test.testDb);
   router.get('/testdbm', controller.test.testDbM);
 

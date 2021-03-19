@@ -32,6 +32,8 @@ export interface questInterface {
   content?: string,
   key?: string,
   twitter_id?: number,
+  twitter_status?: strinng
+  twitter_status_url?: string
   token_id: number,
   reward_people: string,
   reward_price: string,
