@@ -557,6 +557,8 @@ export default class Quest extends Service {
           _sql += ' AND type = 1';
         } else if (type === 'key') {
           _sql += ' AND type = 2';
+        } else if (type === 'twitterRetweet') {
+          _sql += ' AND type = 3';
         }
         return _sql;
       };
@@ -583,6 +585,8 @@ export default class Quest extends Service {
           _sql += 'type = 1';
         } else if (type === 'key') {
           _sql += 'type = 2';
+        } else if (type === 'twitterRetweet') {
+          _sql += 'type = 3';
         }
 
         if (_sql) {
@@ -730,6 +734,8 @@ export default class Quest extends Service {
       const screenNameArr = results.filter((i: any) => Number(i.type) === 0 && i.twitter_id);
       const screenNameArrs = screenNameArr.map((i: any) => i.twitter_id);
       const screenNameStr = screenNameArrs.join(',');
+
+      this.logger.info('screenNameStr', screenNameStr);
 
       const usersTwitterResList: {} = {};
       const usersTwitterRes = await this.service.twitter.usersLookup(screenNameStr);
@@ -1973,8 +1979,6 @@ export default class Quest extends Service {
 
       // 查询Twitter任务数量
       const sqlAllQuestsTwitterCount = handleTokenTypeSql({ sql: sqlAllQuestsCount, token, type: 0, where: false });
-      this.logger.info('sqlAllQuestsTwitterCount', sqlAllQuestsTwitterCount);
-
       const resultsAllQuestsTwitterCount = await mysqlQuest.query(sqlAllQuestsTwitterCount);
       const resultsQuestsTwitter = resultsAllQuestsTwitterCount[0].count;
       this.logger.info('resultsQuestsTwitter', resultsQuestsTwitter);
@@ -1991,6 +1995,12 @@ export default class Quest extends Service {
       const resultsQuestsKey = resultsAllQuestsKeyCount[0].count;
       this.logger.info('resultsQuestsKey', resultsQuestsKey);
 
+      // 查询twitter转推任务数量
+      const sqlAllQuestsRetweetCount = handleTokenTypeSql({ sql: sqlAllQuestsCount, token, type: 3, where: false });
+      const resultsAllQuestsRetweetCount = await mysqlQuest.query(sqlAllQuestsRetweetCount);
+      const resultsQuestsRetweet = resultsAllQuestsRetweetCount[0].count;
+      this.logger.info('resultsQuestsRetweet', resultsQuestsRetweet);
+
 
       // -----
 
@@ -2006,6 +2016,8 @@ export default class Quest extends Service {
           _sql += `${_where}${_token}type = 1`;
         } else if (type === 'key') {
           _sql += `${_where}${_token}type = 2`;
+        } else if (type === 'twitterRetweet') {
+          _sql += `${_where}${_token}type = 3`;
         } else {
           if (token) {
             _sql += `${_where}token_id = ${token}`;
@@ -2024,6 +2036,8 @@ export default class Quest extends Service {
           _sql += `${_where}${_token}q.type = 1`;
         } else if (type === 'key') {
           _sql += `${_where}${_token}q.type = 2`;
+        } else if (type === 'twitterRetweet') {
+          _sql += `${_where}${_token}q.type = 3`;
         }
         return `${_sql};`;
       };
@@ -2089,6 +2103,7 @@ export default class Quest extends Service {
             type_twitter: resultsQuestsTwitter,
             type_customtask: resultsQuestsCustomtask,
             type_key: resultsQuestsKey,
+            type_retweet: resultsQuestsRetweet,
             all: resultsTypeQuests,
             undone: Number(resultsTypeQuests) - Number(completed),
             completed,
@@ -2105,6 +2120,7 @@ export default class Quest extends Service {
           type_twitter: resultsQuestsTwitter,
           type_customtask: resultsQuestsCustomtask,
           type_key: resultsQuestsKey,
+          type_retweet: resultsQuestsRetweet,
           all: resultsTypeQuests,
           undone: Number(resultsTypeQuests) - Number(completed),
           completed,
