@@ -38,6 +38,7 @@ export interface questInterface {
   reward_people: string,
   reward_price: string,
   hash?: string,
+  end?: number,
   create_time?: string,
   update_time?: string,
 }

@@ -134,6 +134,7 @@ export default class Quest extends Service {
         reward_people,
         reward_price,
         hash,
+        end: 0,
         create_time: time,
         update_time: time,
       };
@@ -192,7 +193,8 @@ export default class Quest extends Service {
         throw new Error('没有托管信息');
       }
 
-      const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
+      // const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
+      const hash = 'hash';
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
       const data: questInterface = {
         uid: id,
@@ -203,6 +205,7 @@ export default class Quest extends Service {
         reward_people,
         reward_price,
         hash,
+        end: 0,
         create_time: time,
         update_time: time,
       };
@@ -260,7 +263,8 @@ export default class Quest extends Service {
         throw new Error('没有托管信息');
       }
 
-      const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
+      // const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
+      const hash = 'hash';
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
       const randomKey = random(32, { numbers: false });
       const data: questKeyInterface = {
@@ -273,6 +277,7 @@ export default class Quest extends Service {
         reward_people,
         reward_price,
         hash,
+        end: 0,
         create_time: time,
         update_time: time,
       };
@@ -328,7 +333,8 @@ export default class Quest extends Service {
         throw new Error('没有托管信息');
       }
 
-      const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
+      // const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
+      const hash = 'hash';
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
       const data: questKeyInterface = {
         uid: id,
@@ -339,6 +345,7 @@ export default class Quest extends Service {
         reward_people,
         reward_price,
         hash,
+        end: 0,
         create_time: time,
         update_time: time,
       };
@@ -675,7 +682,7 @@ export default class Quest extends Service {
 
       // 查询任务
       // [{}] [{}, {}]
-      const sqlQuests = `SELECT id, uid, type, title, twitter_id, twitter_status, twitter_status_url, token_id, reward_people, reward_price, create_time FROM quests ${whereToken} ORDER BY ${orders} LIMIT ?, ?;`;
+      const sqlQuests = `SELECT id, uid, type, title, twitter_id, twitter_status, twitter_status_url, token_id, reward_people, reward_price, end, create_time FROM quests ${whereToken} ORDER BY ${orders} LIMIT ?, ?;`;
       const results = await mysqlQuest.query(sqlQuests, [ (page - 1) * size, Number(size) ]);
       this.logger.info('results', results);
       if (!results.length) {
@@ -1001,7 +1008,7 @@ export default class Quest extends Service {
 
     try {
       // 获取任务信息
-      const sqlQuest = 'SELECT id, uid, type, twitter_id, title, content, twitter_status, twitter_status_url, token_id, reward_people, reward_price, create_time FROM quests WHERE id = ?;';
+      const sqlQuest = 'SELECT id, uid, type, twitter_id, title, content, twitter_status, twitter_status_url, token_id, reward_people, reward_price, end, create_time FROM quests WHERE id = ?;';
       const resultQuest = await mysqlQuest.query(sqlQuest, [ qid ]);
       this.logger.info('resultQuest', resultQuest);
 
@@ -1311,6 +1318,11 @@ export default class Quest extends Service {
         throw new Error('任务不存在');
       }
 
+      // 任务已结束
+      if (Number(resultQuest.end) === 1) {
+        throw new Error('任务已结束');
+      }
+
       // 不能领取自己发布的任务
       if (String(resultQuest.uid) === String(id)) {
         throw new Error('不能领取自己发布的任务');
@@ -1450,6 +1462,11 @@ export default class Quest extends Service {
         throw new Error('任务不存在');
       }
 
+      // 任务已结束
+      if (Number(resultQuest.end) === 1) {
+        throw new Error('任务已结束');
+      }
+
       // 不能领取自己发布的任务
       if (String(resultQuest.uid) === String(id)) {
         throw new Error('不能领取自己发布的任务');
@@ -1560,6 +1577,11 @@ export default class Quest extends Service {
       this.logger.info('resultQuest', resultQuest);
       if (!resultQuest) {
         throw new Error('任务不存在');
+      }
+
+      // 任务已结束
+      if (Number(resultQuest.end) === 1) {
+        throw new Error('任务已结束');
       }
 
       // 不能领取自己发布的任务
@@ -1801,6 +1823,11 @@ export default class Quest extends Service {
       this.logger.info('resultQuest', resultQuest, id);
       if (!resultQuest) {
         throw new Error('任务不存在');
+      }
+
+      // 任务已结束
+      if (Number(resultQuest.end) === 1) {
+        throw new Error('任务已结束');
       }
 
       // 暂时 只能发布者操作任务
@@ -2194,6 +2221,182 @@ export default class Quest extends Service {
       ctx.userQuest = {};
     }
   }
+  // 待发放奖励列表
+  public async pendingRewards() {
+
+    // init mysql
+    const mysqlQuest = this.app.mysql.get('quest');
+    const mysqlMatataki = this.app.mysql.get('matataki');
+
+    try {
+      const _sql = `SELECT qtl.id, qtl.to_id, qtl.token_id, qtl.amount, qtl.create_time, ql.qid
+      FROM quests_transfer_logs qtl LEFT JOIN quests_logs ql ON qtl.qlogid = ql.id
+      WHERE qtl.\`hash\` = '' ORDER BY qtl.create_time ASC;`;
+      this.logger.info('pendingRewards _sql', _sql);
+      const resultRewards = await mysqlQuest.query(_sql);
+      // this.logger.info(resultRewards);
+
+      // 获取用户信息
+      let sqlUser = '';
+      resultRewards.forEach((i: any) => {
+        sqlUser += `SELECT username, nickname, avatar FROM users WHERE id = ${i.to_id};`;
+      });
+      const resultsMatatakiUser = await mysqlMatataki.query(sqlUser);
+      const resultsMatatakiUserFlat = transformForOneArray(resultsMatatakiUser);
+      // this.logger.info('resultsMatatakiUserFlat', resultsMatatakiUserFlat);
+      resultRewards.forEach((i: any, idx: number) => {
+        i.username = resultsMatatakiUserFlat[idx].nickname || resultsMatatakiUserFlat[idx].username || '';
+        i.avatar = resultsMatatakiUserFlat[idx].avatar || '';
+      });
+
+      let sqlToken = '';
+      resultRewards.forEach((i: any) => {
+        sqlToken += `SELECT name, symbol, decimals, logo FROM minetokens WHERE id = ${i.token_id};`;
+      });
+      const resultsMatatakiToken = await mysqlMatataki.query(sqlToken);
+      const resultsMatatakiTokenFlat = transformForOneArray(resultsMatatakiToken);
+      // this.logger.info('resultsMatatakiTokenFlat', resultsMatatakiTokenFlat);
+      resultRewards.forEach((i: any, idx: number) => {
+        i.name = resultsMatatakiTokenFlat[idx].name || '';
+        i.symbol = resultsMatatakiTokenFlat[idx].symbol || '';
+        i.decimals = resultsMatatakiTokenFlat[idx].decimals || '';
+        i.logo = resultsMatatakiTokenFlat[idx].logo || '';
+      });
+
+      return {
+        code: 0,
+        data: {
+          count: resultRewards.length,
+          list: resultRewards,
+        },
+      };
+    } catch (e) {
+      this.logger.error('pendingRewards error: ', e);
+      return {
+        code: -1,
+      };
+    }
+  }
+  // 结束任务
+  public async questEnd({ qid }) {
+    const { app, logger, ctx } = this;
+    const { id } = ctx.user;
+
+    logger.info('questEnd start', qid, id);
+
+    // init
+    const mysqlQuest = app.mysql.get('quest');
+    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
+
+    try {
+      // 设置托管信息
+      if (isEmpty(ctx.userQuest)) {
+        await this.getHostingInfo();
+      }
+
+      if (!ctx.userQuest.id) {
+        throw new Error('没有托管信息');
+      }
+
+      // 是不是自己的任务
+      const resultQuest = await connQuest.get('quests', { id: qid, uid: id });
+      console.log('resultQuest', resultQuest);
+
+      if (isEmpty(resultQuest)) {
+        throw new Error('没有找到相关任务');
+      }
+
+      if (Number(resultQuest.end) === 1) {
+        throw new Error('不可重复操作');
+      }
+
+      // 更新
+      const row = {
+        id: resultQuest.id,
+        end: 1,
+      };
+      const result = await connQuest.update('quests', row);
+      const updateSuccess = result.affectedRows === 1;
+
+      if (updateSuccess) {
+        //
+      } else {
+        throw new Error('更新失败');
+      }
+
+      // 退钱
+      const questLogCount = await connQuest.query('SELECT COUNT(1) as count FROM quests_logs WHERE qid = ?;', [ qid ]);
+      logger.info('questLogCount', questLogCount);
+      if (Number(questLogCount[0].count) >= Number(resultQuest.reward_people)) {
+        logger.info('已经领取完了, 无需退还资产');
+      } else {
+        // 发送资产
+        // 计算获取奖励
+        const processReward = (price: string, people: string) => {
+          const BN = BigNumber.clone();
+          BN.config({ DECIMAL_PLACES: 3 });
+          const single = new BN(new BN(Number(price))).dividedBy(Number(people));
+          return single.toString();
+        };
+        // 计算剩余资产
+        const processAssets = (amount: string, share: number, price: string) => {
+
+          // 剩余资产 = 总资产/人数 * 剩余份额
+          // 到账资产 = 剩余资产 - (总资产 * 千分之三)
+
+          const BN = BigNumber.clone();
+          BN.config({ DECIMAL_PLACES: 3 });
+          const single = new BN(new BN(Number(amount))).multipliedBy(Number(share));
+          const rate = 0.003; // 千分之三
+
+          // 手续费
+          const handlingFee = new BN(new BN(Number(price))).multipliedBy(Number(rate));
+          return (new BigNumber(single).minus(handlingFee)).toString();
+        };
+
+        // 单份奖励
+        const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+        // 剩余份额
+        const remainingShare = Number(resultQuest.reward_people) - Number(questLogCount[0].count);
+        // 剩余份额数量
+        const shareAmount = processAssets(amount, remainingShare, resultQuest.reward_price);
+
+        if (Number(shareAmount) > 0) {
+          const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+
+          console.log('id', id);
+
+          await connQuest.insert('quests_end_transfer_logs', {
+            qid: resultQuest.id,
+            from_id: ctx.userQuest.id,
+            to_id: id,
+            token_id: resultQuest.token_id,
+            amount: shareAmount,
+            status: 0,
+            create_time: time,
+            update_time: time,
+          });
+        } else {
+          // 剩余份额小于手续费，不进行操作
+          logger.info('剩余份额小于手续费，不进行操作');
+        }
+      }
+
+      await connQuest.commit();
+
+      return {
+        code: 0,
+      };
+    } catch (e) {
+      logger.error('questEnd error: ', e.toString());
+      await connQuest.rollback();
+      return {
+        code: -1,
+        message: e.toString(),
+      };
+    }
+
+  }
 
   // 发放奖励
   public async receiveTransfer() {
@@ -2262,61 +2465,86 @@ export default class Quest extends Service {
       await connQuest.rollback();
     }
   }
-
-  // 待发放奖励列表
-  public async pendingRewards() {
+  public async endTransfer() {
 
     // init mysql
     const mysqlQuest = this.app.mysql.get('quest');
-    const mysqlMatataki = this.app.mysql.get('matataki');
+    const connQuest = await mysqlQuest.beginTransaction(); // 初始化事务
 
     try {
-      const _sql = `SELECT qtl.id, qtl.to_id, qtl.token_id, qtl.amount, qtl.create_time, ql.qid
-      FROM quests_transfer_logs qtl LEFT JOIN quests_logs ql ON qtl.qlogid = ql.id
-      WHERE qtl.\`hash\` = '' ORDER BY qtl.create_time ASC;`;
-      this.logger.info('pendingRewards _sql', _sql);
-      const resultRewards = await mysqlQuest.query(_sql);
-      // this.logger.info(resultRewards);
+      // 获取所有需要处理的列表
+      const resultTransfer = await connQuest.query('SELECT * FROM quests_end_transfer_logs WHERE `hash` IS NULL AND `status` = 0 ORDER BY create_time ASC LIMIT 0, 1;');
+      this.logger.info('resultTransfer', this.ctx.userQuest);
 
-      // 获取用户信息
-      let sqlUser = '';
-      resultRewards.forEach((i: any) => {
-        sqlUser += `SELECT username, nickname, avatar FROM users WHERE id = ${i.to_id};`;
-      });
-      const resultsMatatakiUser = await mysqlMatataki.query(sqlUser);
-      const resultsMatatakiUserFlat = transformForOneArray(resultsMatatakiUser);
-      // this.logger.info('resultsMatatakiUserFlat', resultsMatatakiUserFlat);
-      resultRewards.forEach((i: any, idx: number) => {
-        i.username = resultsMatatakiUserFlat[idx].nickname || resultsMatatakiUserFlat[idx].username || '';
-        i.avatar = resultsMatatakiUserFlat[idx].avatar || '';
-      });
+      if (!resultTransfer.length) {
+        await connQuest.commit();
+        return;
+      }
 
-      let sqlToken = '';
-      resultRewards.forEach((i: any) => {
-        sqlToken += `SELECT name, symbol, decimals, logo FROM minetokens WHERE id = ${i.token_id};`;
-      });
-      const resultsMatatakiToken = await mysqlMatataki.query(sqlToken);
-      const resultsMatatakiTokenFlat = transformForOneArray(resultsMatatakiToken);
-      // this.logger.info('resultsMatatakiTokenFlat', resultsMatatakiTokenFlat);
-      resultRewards.forEach((i: any, idx: number) => {
-        i.name = resultsMatatakiTokenFlat[idx].name || '';
-        i.symbol = resultsMatatakiTokenFlat[idx].symbol || '';
-        i.decimals = resultsMatatakiTokenFlat[idx].decimals || '';
-        i.logo = resultsMatatakiTokenFlat[idx].logo || '';
-      });
+      const token = await this.getToken();
+      if (!token) {
+        throw new Error('没有token');
+      }
 
-      return {
-        code: 0,
-        data: {
-          count: resultRewards.length,
-          list: resultRewards,
+      // 获取最早的第一个 开始转账
+      const resultUserTransfer = await this.ctx.curl(`${this.config.mtkApi}/minetoken/transfer`, {
+        dataType: 'json',
+        method: 'POST',
+        // contentType: 'json',
+        headers: {
+          'x-access-token': token,
         },
-      };
-    } catch (e) {
-      this.logger.error('pendingRewards error: ', e);
-      return {
-        code: -1,
-      };
+        timeout: 30 * 1000,
+        data: {
+          amount: resultTransfer[0].amount * 10000,
+          memo: 'Matataki Quest 任务奖励退回',
+          to: resultTransfer[0].to_id,
+          tokenId: resultTransfer[0].token_id,
+        },
+      });
+
+      // const resultUserTransfer = {
+      //   status: 0,
+      //   data: {
+      //     code: -1,
+      //     data: {
+      //       tx_hash: '',
+      //     },
+      //   },
+      // };
+
+      this.logger.info('resultUserTransfer', resultUserTransfer);
+      // 更新 hash status
+      let row = {};
+      const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
+
+      if (resultUserTransfer.status === 200 && resultUserTransfer.data.code === 0) {
+        row = {
+          id: resultTransfer[0].id,
+          hash: resultUserTransfer.data.data.tx_hash,
+          status: 1,
+          update_time: time,
+        };
+      } else {
+        row = {
+          id: resultTransfer[0].id,
+          status: 1,
+          update_time: time,
+        };
+        this.logger.error('转账失败');
+      }
+      const result = await connQuest.update('quests_end_transfer_logs', row);
+      const updateSuccess = result.affectedRows === 1;
+
+      if (updateSuccess) {
+        this.logger.info('奖励退回成功');
+        await connQuest.commit();
+      } else {
+        throw new Error('奖励退回失败');
+      }
+    } catch (error) {
+      this.logger.error('receiveTransfer error: ', error.toString());
+      await connQuest.rollback();
     }
   }
 }

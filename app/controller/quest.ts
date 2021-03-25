@@ -190,6 +190,16 @@ export default class QuestController extends Controller {
     };
     ctx.body = Object.assign(resultFormat, result);
   }
+  public async questEnd() {
+    const { ctx } = this;
+    const { qid } = ctx.request.body;
+    const result = await ctx.service.quest.questEnd({ qid });
+    const resultFormat = {
+      code: 0,
+      message: 'success',
+    };
+    ctx.body = Object.assign(resultFormat, result);
+  }
   public async pendingRewards() {
     const { ctx } = this;
     const result = await ctx.service.quest.pendingRewards();
