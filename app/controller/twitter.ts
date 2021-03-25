@@ -32,6 +32,6 @@ export default class HomeController extends Controller {
   }
   public async test() {
     const { ctx } = this;
-    ctx.body = await ctx.service.twitter.test1();
+    ctx.body = await ctx.service.twitter.test();
   }
 }
