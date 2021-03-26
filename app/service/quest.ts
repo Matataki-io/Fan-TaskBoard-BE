@@ -203,8 +203,7 @@ export default class Quest extends Service {
         throw new Error('没有托管信息');
       }
 
-      // const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
-      const hash = 'hash';
+      const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
       const data: questInterface = {
         uid: id,
@@ -273,8 +272,7 @@ export default class Quest extends Service {
         throw new Error('没有托管信息');
       }
 
-      // const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
-      const hash = 'hash';
+      const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
       const randomKey = random(32, { numbers: false });
       const data: questKeyInterface = {
@@ -343,8 +341,7 @@ export default class Quest extends Service {
         throw new Error('没有托管信息');
       }
 
-      // const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
-      const hash = 'hash';
+      const hash = await this.CreateQuestTransfer(type, reward_price, token_id);
       const time: string = moment().format('YYYY-MM-DD HH:mm:ss');
       const data: questKeyInterface = {
         uid: id,
