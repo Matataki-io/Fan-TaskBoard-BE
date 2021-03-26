@@ -74,6 +74,14 @@ export default class Quest extends Service {
   private async CreateQuestTransfer(type, reward_price, token_id): Promise<string> {
     const { ctx } = this;
     const token = ctx.cookies.get('access-token');
+    const memo = Number(type) === 0 ?
+      'Twitter 关注任务' :
+      Number(type) === 1 ?
+        '自定义任务' :
+        Number(type) === 2 ?
+          '解谜任务' :
+          Number(type) === 3 ?
+            'Twitter 转推任务' : '';
     // 转账
     const resultUserTransfer = await ctx.curl(`${this.config.mtkApi}/minetoken/transfer`, {
       dataType: 'json',
@@ -85,7 +93,7 @@ export default class Quest extends Service {
       timeout: 30 * 1000,
       data: {
         amount: Number(reward_price) * 10000,
-        memo: `Matataki Quest 任务创建奖池 - ${Number(type) === 0 ? 'Twitter 关注任务' : '自定义任务'}`,
+        memo: `Matataki Quest 任务创建奖池 - ${memo}`,
         to: ctx.userQuest.id,
         tokenId: token_id,
       },
