@@ -2468,6 +2468,7 @@ export default class Quest extends Service {
       await connQuest.rollback();
     }
   }
+  // 结束任务
   public async endTransfer() {
 
     // init mysql
