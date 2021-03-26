@@ -4,8 +4,9 @@ import * as ms from 'ms';
 export default class CookieController extends Controller {
   public async index() {
     const { ctx, app } = this;
+    this.logger.info('app', app.config.env);
     const { accessToken } = ctx.request.body;
-    console.log('accessToken', accessToken);
+    this.logger.info('accessToken', accessToken);
 
     try {
       ctx.cookies.set('access-token', accessToken, {

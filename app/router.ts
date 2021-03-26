@@ -23,6 +23,8 @@ export default (app: Application) => {
   router.get('/quest', passport.verify, controller.quest.getQuest);
   // 获取任务统计
   router.get('/quest/count', passport.verify, controller.quest.questCount);
+  // 获取自己的所有任务
+  router.get('/quest/all', passport.authorize, controller.quest.questAll);
   // 结束任务
   router.put('/quest/end', passport.authorize, controller.quest.questEnd);
   // 更新任务

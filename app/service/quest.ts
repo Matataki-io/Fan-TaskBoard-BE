@@ -5,6 +5,8 @@ import { isEmpty } from 'lodash';
 import BigNumber from 'bignumber.js';
 import { transformForOneArray } from '../utils/index';
 import * as random from 'string-random';
+import { decimalProcessing } from '../utils/index';
+
 interface paginationInterface {
   page: number,
   size: number,
@@ -58,6 +60,14 @@ export default class Quest extends Service {
     if (!(Number(reward_price) > 0)) {
       throw new Error('奖励金额必须大于0');
     }
+  }
+
+  // 计算获取奖励
+  private processReward(price: string, people: string) {
+    const BN = BigNumber.clone();
+    // BN.config({ DECIMAL_PLACES: 3 });
+    const single = new BN(new BN(Number(price))).dividedBy(Number(people));
+    return decimalProcessing(single.toString());
   }
 
   // 创建任务转账
@@ -471,6 +481,8 @@ export default class Quest extends Service {
         orders = 'create_time DESC';
       } else if (sort === 'most') {
         orders = 'reward_price+0 DESC';
+      } else if (sort === 'default') {
+        orders = '\`end\` = 0 DESC, id DESC';
       } else {
         orders = 'create_time DESC';
       }
@@ -1398,15 +1410,7 @@ export default class Quest extends Service {
 
       // 发送奖励
       // 计算获取奖励
-      const processReward = (price: string, people: string) => {
-        // this.logger.info('1111', price, people)
-        const BN = BigNumber.clone();
-        BN.config({ DECIMAL_PLACES: 3 });
-        const single = new BN(new BN(Number(price))).dividedBy(Number(people));
-        return single.toString();
-      };
-
-      const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+      const amount = this.processReward(resultQuest.reward_price, resultQuest.reward_people);
       await connQuest.insert('quests_transfer_logs', {
         qlogid: rewardResult.insertId,
         from_id: ctx.userQuest.id,
@@ -1515,15 +1519,7 @@ export default class Quest extends Service {
 
       // 发送奖励
       // 计算获取奖励
-      const processReward = (price: string, people: string) => {
-        // this.logger.info('1111', price, people)
-        const BN = BigNumber.clone();
-        BN.config({ DECIMAL_PLACES: 3 });
-        const single = new BN(new BN(Number(price))).dividedBy(Number(people));
-        return single.toString();
-      };
-
-      const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+      const amount = this.processReward(resultQuest.reward_price, resultQuest.reward_people);
       await connQuest.insert('quests_transfer_logs', {
         qlogid: rewardResult.insertId,
         from_id: ctx.userQuest.id,
@@ -1663,15 +1659,7 @@ export default class Quest extends Service {
 
       // 发送奖励
       // 计算获取奖励
-      const processReward = (price: string, people: string) => {
-        // this.logger.info('1111', price, people)
-        const BN = BigNumber.clone();
-        BN.config({ DECIMAL_PLACES: 3 });
-        const single = new BN(new BN(Number(price))).dividedBy(Number(people));
-        return single.toString();
-      };
-
-      const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+      const amount = this.processReward(resultQuest.reward_price, resultQuest.reward_people);
       await connQuest.insert('quests_transfer_logs', {
         qlogid: rewardResult.insertId,
         from_id: ctx.userQuest.id,
@@ -1874,15 +1862,7 @@ export default class Quest extends Service {
 
       // 发送奖励
       // 计算获取奖励
-      const processReward = (price: string, people: string) => {
-        // this.logger.info('1111', price, people)
-        const BN = BigNumber.clone();
-        BN.config({ DECIMAL_PLACES: 3 });
-        const single = new BN(new BN(Number(price))).dividedBy(Number(people));
-        return single.toString();
-      };
-
-      const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+      const amount = this.processReward(resultQuest.reward_price, resultQuest.reward_people);
       await connQuest.insert('quests_transfer_logs', {
         qlogid: rewardResult.insertId,
         from_id: ctx.userQuest.id,
@@ -2164,6 +2144,35 @@ export default class Quest extends Service {
     }
   }
 
+  public async questAll() {
+    const { logger, ctx } = this;
+    const { id } = ctx.user;
+
+    logger.info('questAll', new Date());
+
+    const sql = `SELECT id, uid, type, twitter_id, title, \`end\`, create_time
+    FROM quests WHERE uid = ?
+    ORDER BY id DESC;`;
+    const mysqlQuest = this.app.mysql.get('quest');
+
+    try {
+      const questLogCount = await mysqlQuest.query(sql, [ id ]);
+      return {
+        code: 0,
+        data: {
+          count: questLogCount.length,
+          list: questLogCount,
+        },
+      };
+    } catch (e) {
+      this.logger.error('questAll error: ', e);
+      return {
+        code: -1,
+        message: `questAll error${e}`,
+      };
+    }
+  }
+
   public async getToken() {
     const { logger, ctx } = this;
     logger.info('getToken', new Date());
@@ -2332,12 +2341,6 @@ export default class Quest extends Service {
       } else {
         // 发送资产
         // 计算获取奖励
-        const processReward = (price: string, people: string) => {
-          const BN = BigNumber.clone();
-          BN.config({ DECIMAL_PLACES: 3 });
-          const single = new BN(new BN(Number(price))).dividedBy(Number(people));
-          return single.toString();
-        };
         // 计算剩余资产
         const processAssets = (amount: string, share: number, price: string) => {
 
@@ -2355,7 +2358,7 @@ export default class Quest extends Service {
         };
 
         // 单份奖励
-        const amount = processReward(resultQuest.reward_price, resultQuest.reward_people);
+        const amount = this.processReward(resultQuest.reward_price, resultQuest.reward_people);
         // 剩余份额
         const remainingShare = Number(resultQuest.reward_people) - Number(questLogCount[0].count);
         // 剩余份额数量
