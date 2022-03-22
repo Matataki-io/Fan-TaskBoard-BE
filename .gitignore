@@ -16,6 +16,8 @@ app/**/*.js
 test/**/*.js
 config/**/config.*.js
 config/**/config.*.ts
+!config/**/config.example.ts
+!config/**/config.default.example.ts
 app/**/*.map
 test/**/*.map
 config/**/*.map
